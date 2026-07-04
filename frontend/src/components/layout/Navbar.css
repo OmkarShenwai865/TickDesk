@@ -1,0 +1,208 @@
+/* ===========================
+   Navbar shell
+=========================== */
+
+.navbar {
+    height: 66px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+
+    padding: 0 24px;
+
+    background: #ffffff;
+    border-bottom: 1px solid #e8ecf0;
+    box-shadow: 0 1px 6px rgba(15, 23, 42, 0.05);
+}
+
+/* ===========================
+   Page title
+=========================== */
+
+.page-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #0f172a;
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: -0.3px;
+}
+
+/* ===========================
+   Search (center)
+=========================== */
+
+.navbar-center {
+    flex: 1;
+    max-width: 420px;
+}
+
+.search-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 40px;
+    padding: 0 14px;
+    background: #f8fafc;
+    border: 1px solid #e8ecf0;
+    border-radius: 10px;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.search-box:focus-within {
+    border-color: #2563eb;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.search-icon {
+    color: #9ca3af;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.search-box input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 13.5px;
+    color: #374151;
+}
+
+.search-box input::placeholder {
+    color: #9ca3af;
+}
+
+/* ===========================
+   Right actions group
+=========================== */
+
+.navbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+/* ── Icon buttons ── */
+
+.nav-icon-btn {
+    position: relative;
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: #6b7280;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nav-icon-btn:hover {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+/* ── Notification badge ── */
+
+.notif-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    min-width: 16px;
+    height: 16px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 9.5px;
+    font-weight: 700;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 3px;
+    border: 2px solid #fff;
+    pointer-events: none;
+}
+
+/* ── Vertical divider ── */
+
+.nav-divider {
+    width: 1px;
+    height: 26px;
+    background: #e8ecf0;
+    margin: 0 10px;
+    flex-shrink: 0;
+}
+
+/* ===========================
+   Profile section
+=========================== */
+
+.profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 8px 5px 5px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    user-select: none;
+}
+
+.profile:hover {
+    background: #f3f4f6;
+}
+
+/* ── Avatar (initials) ── */
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+}
+
+/* ── Profile text ── */
+
+.profile-info {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.3;
+}
+
+.username {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.role {
+    font-size: 11.5px;
+    color: #6b7280;
+}
+
+/* ── Chevron ── */
+
+.chevron-icon {
+    color: #9ca3af;
+    font-size: 15px;
+    flex-shrink: 0;
+}
