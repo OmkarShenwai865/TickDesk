@@ -1,0 +1,174 @@
+
+.sidebar {
+    width: 260px;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+
+    background: #0f172a;
+    color: #ffffff;
+
+    display: flex;
+    flex-direction: column;
+}
+
+/* ---------- Logo ---------- */
+
+.sidebar-logo {
+    padding: 22px 20px;
+
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.logo-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.logo-icon {
+    width: 56px;
+    height: 56px;
+
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.logo-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.logo-text h2 {
+    margin: 0;
+
+    color: #ffffff;
+
+    font-size: 2rem;          /* 32px */
+    font-weight: 700;
+
+    line-height: 1;
+    letter-spacing: -0.5px;
+}
+
+.logo-tagline {
+    margin-top: 6px;
+
+    color: #94a3b8;
+
+    font-size: 10px;
+    font-weight: 500;
+
+    line-height: 1.4;
+
+    white-space: nowrap;
+}
+
+/* ---------- Navigation ---------- */
+
+.sidebar-nav {
+    flex: 1;
+
+    overflow-y: auto;
+
+    padding: 12px;
+}
+
+.sidebar-menu {
+    list-style: none;
+
+    margin: 0;
+    padding: 0;
+}
+
+.sidebar-menu li {
+    margin-bottom: 4px;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    padding: 12px 16px;
+
+    text-decoration: none;
+
+    color: #d1d5db;
+
+    border-radius: 12px;
+
+    transition: all .25s ease;
+}
+
+.nav-link:hover {
+    background: rgba(255,255,255,.08);
+    color: #ffffff;
+}
+
+.nav-link.active {
+    background: #2563eb;
+    color: #ffffff;
+
+    box-shadow: 0 6px 18px rgba(37,99,235,.25);
+}
+
+.nav-icon {
+    font-size: 18px;
+
+    flex-shrink: 0;
+}
+
+/* ---------- Footer ---------- */
+
+.sidebar-footer {
+    padding: 16px;
+
+    border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.logout-btn {
+    width: 100%;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+
+    padding: 12px;
+
+    border: none;
+    border-radius: 12px;
+
+    background: rgba(255,255,255,.08);
+
+    color: #ffffff;
+
+    font-size: 15px;
+    font-weight: 500;
+
+    cursor: pointer;
+
+    transition: all .25s ease;
+}
+
+.logout-btn:hover {
+    background: #dc2626;
+}
+
+/* ---------- Scrollbar ---------- */
+
+.sidebar-nav::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,.18);
+    border-radius: 10px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
