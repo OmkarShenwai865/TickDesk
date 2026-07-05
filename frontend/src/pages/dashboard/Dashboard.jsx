@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import api from "../../services/api";
 import "./Dashboard.css";
 
@@ -20,43 +20,52 @@ import {
     FiClock,
 } from "react-icons/fi";
 
-// ─── Static data ───────────────────────────────────────────────────────────────
+// ─── Colour maps ───────────────────────────────────────────────────────────────
 
-const recentTickets = [
-    { id: "TK-1048", subject: "Unable to connect to VPN",    requester: "Rohit Sharma",  priority: "High",   status: "Open",        createdAt: "May 27, 2025" },
-    { id: "TK-1047", subject: "System slow performance",     requester: "Sneha Patel",   priority: "Medium", status: "In Progress", createdAt: "May 26, 2025" },
-    { id: "TK-1046", subject: "Email not syncing",           requester: "Amit Verma",    priority: "Low",    status: "Pending",     createdAt: "May 26, 2025" },
-    { id: "TK-1045", subject: "Printer not working",         requester: "Neha Singh",    priority: "High",   status: "Open",        createdAt: "May 25, 2025" },
-    { id: "TK-1044", subject: "Request for new monitor",     requester: "Vikram Reddy",  priority: "Low",    status: "Closed",      createdAt: "May 25, 2025" },
-];
+const TICKET_STATUS_COLORS = {
+    Open:        "#3b82f6",
+    "In Progress": "#f97316",
+    Resolved:    "#22c55e",
+    Closed:      "#6b7280",
+    Pending:     "#eab308",
+};
 
-const ticketSegments = [
-    { label: "Open",        count: 12, pct: 37.5,  color: "#3b82f6" },
-    { label: "In Progress", count: 8,  pct: 25,    color: "#f97316" },
-    { label: "Pending",     count: 6,  pct: 18.75, color: "#eab308" },
-    { label: "Closed",      count: 6,  pct: 18.75, color: "#22c55e" },
-];
+const ASSET_CATEGORY_COLORS = {
+    Laptop:     "#3b82f6",
+    Desktop:    "#22c55e",
+    Monitor:    "#f97316",
+    Printer:    "#8b5cf6",
+    Server:     "#ef4444",
+    Networking: "#06b6d4",
+    Other:      "#94a3b8",
+};
 
-const recentAssets = [
-    { id: "AST-1254", name: 'Dell Latitude 5440',    type: "Laptop",     assignedTo: "Rohit Sharma",  addedOn: "May 27, 2025" },
-    { id: "AST-1253", name: "HP LaserJet Pro MFP",   type: "Printer",    assignedTo: "Accounts Dept.",addedOn: "May 26, 2025" },
-    { id: "AST-1252", name: "Logitech MX Master 3",  type: "Peripheral", assignedTo: "Sneha Patel",   addedOn: "May 26, 2025" },
-    { id: "AST-1251", name: 'Samsung 24" Monitor',   type: "Monitor",    assignedTo: "Amit Verma",    addedOn: "May 25, 2025" },
-    { id: "AST-1250", name: "iPhone 14",              type: "Mobile",     assignedTo: "Neha Singh",    addedOn: "May 25, 2025" },
-];
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const assetSegments = [
-    { label: "Laptops",   count: 620, pct: 49.7, color: "#3b82f6" },
-    { label: "Desktops",  count: 320, pct: 25.6, color: "#22c55e" },
-    { label: "Monitors",  count: 180, pct: 14.4, color: "#f97316" },
-    { label: "Others",    count: 128, pct: 10.3, color: "#8b5cf6" },
-];
+function toSegments(data, labelKey, colorMap) {
+    const total = data.reduce((s, r) => s + r.count, 0);
+    return data.map(r => ({
+        label: r[labelKey],
+        count: r.count,
+        pct:   total ? +((r.count / total) * 100).toFixed(1) : 0,
+        color: colorMap[r[labelKey]] ?? "#94a3b8",
+    }));
+}
+
+function fmtDate(iso) {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString("en-US", {
+        month: "short", day: "numeric", year: "numeric",
+    });
+}
+
+// ─── Static sidebar data (not in API yet) ─────────────────────────────────────
 
 const quickActions = [
-    { label: "Create Ticket",    Icon: FiPlus,     color: "#2563eb", bg: "#eff6ff" },
-    { label: "Add Asset",        Icon: FiMonitor,  color: "#16a34a", bg: "#f0fdf4" },
-    { label: "Add User",         Icon: FiUserPlus, color: "#7c3aed", bg: "#f5f3ff" },
-    { label: "Generate Report",  Icon: FiFileText, color: "#ea580c", bg: "#fff7ed" },
+    { label: "Create Ticket",   Icon: FiPlus,     color: "#2563eb", bg: "#eff6ff" },
+    { label: "Add Asset",       Icon: FiMonitor,  color: "#16a34a", bg: "#f0fdf4" },
+    { label: "Add User",        Icon: FiUserPlus, color: "#7c3aed", bg: "#f5f3ff" },
+    { label: "Generate Report", Icon: FiFileText, color: "#ea580c", bg: "#fff7ed" },
 ];
 
 // ─── DonutChart ────────────────────────────────────────────────────────────────
@@ -70,9 +79,9 @@ function DonutChart({ segments, total }) {
         <svg viewBox="0 0 130 130" className="donut-svg">
             <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f1f5f9" strokeWidth={sw} />
             {segments.map((seg, i) => {
-                const len = (seg.pct / 100) * C;
+                const len    = (seg.pct / 100) * C;
                 const offset = -cumulative;
-                cumulative += len;
+                cumulative  += len;
                 return (
                     <circle
                         key={i}
@@ -87,7 +96,7 @@ function DonutChart({ segments, total }) {
                     />
                 );
             })}
-            <text x={cx} y={cy - 5} textAnchor="middle" className="donut-center-label">Total</text>
+            <text x={cx} y={cy - 5}  textAnchor="middle" className="donut-center-label">Total</text>
             <text x={cx} y={cy + 17} textAnchor="middle" className="donut-center-value">{total}</text>
         </svg>
     );
@@ -97,7 +106,7 @@ function DonutChart({ segments, total }) {
 
 function SLARing({ pct }) {
     const cx = 60, cy = 60, r = 46, sw = 10;
-    const C = 2 * Math.PI * r;
+    const C      = 2 * Math.PI * r;
     const filled = (pct / 100) * C;
     return (
         <svg viewBox="0 0 120 120" className="sla-svg">
@@ -131,18 +140,49 @@ function TicketStatusBadge({ status }) {
 // ─── Dashboard ─────────────────────────────────────────────────────────────────
 
 function Dashboard() {
+    const [userName,          setUserName]          = useState("Admin");
+    const [stats,             setStats]             = useState(null);
+    const [ticketSegments,    setTicketSegments]    = useState([]);
+    const [assetSegments,     setAssetSegments]     = useState([]);
+    const [recentTickets,     setRecentTickets]     = useState([]);
+    const [recentAssets,      setRecentAssets]      = useState([]);
 
     useEffect(() => {
-        const fetchProfile = async () => {
+        const load = async () => {
             try {
-                const response = await api.get("accounts/profile/");
-                console.log(response.data);
-            } catch (error) {
-                console.log(error);
+                const [profile, statsRes, ticketStatus, assetDist, tickets, assets] =
+                    await Promise.all([
+                        api.get("accounts/profile/"),
+                        api.get("dashboard/stats/"),
+                        api.get("dashboard/ticket-status/"),
+                        api.get("dashboard/asset-distribution/"),
+                        api.get("dashboard/recent-tickets/"),
+                        api.get("dashboard/recent-assets/"),
+                    ]);
+
+                const u = profile.data;
+                setUserName(u.first_name || u.username || "Admin");
+
+                setStats(statsRes.data);
+
+                setTicketSegments(toSegments(ticketStatus.data, "status",   TICKET_STATUS_COLORS));
+                setAssetSegments (toSegments(assetDist.data,    "category", ASSET_CATEGORY_COLORS));
+
+                setRecentTickets(tickets.data);
+                setRecentAssets (assets.data);
+            } catch (err) {
+                console.error("Dashboard load error:", err);
             }
         };
-        fetchProfile();
+        load();
     }, []);
+
+    const totalTickets = ticketSegments.reduce((s, seg) => s + seg.count, 0);
+    const totalAssets  = assetSegments.reduce((s, seg) => s + seg.count, 0);
+
+    const today = new Date().toLocaleDateString("en-US", {
+        month: "long", day: "numeric", year: "numeric",
+    });
 
     return (
         <div className="dashboard">
@@ -150,22 +190,22 @@ function Dashboard() {
             {/* ── Welcome ── */}
             <section className="welcome-section">
                 <div>
-                    <h1>Welcome back, Admin! 👋</h1>
+                    <h1>Welcome back, {userName}! 👋</h1>
                     <p>Here&apos;s what&apos;s happening with your IT environment today.</p>
                 </div>
                 <div className="welcome-date">
                     <FiCalendar size={15} />
-                    <span>May 27, 2025</span>
+                    <span>{today}</span>
                     <FiChevronDown size={14} />
                 </div>
             </section>
 
             {/* ── Summary Cards ── */}
             <section className="summary-grid">
-                <SummaryCard icon={<FiMonitor />}   title="Total Assets"  value="1,248" change="+12.5% from last month" iconColor="#2563eb" iconBg="#eff6ff" />
-                <SummaryCard icon={<FiClipboard />} title="Open Tickets"  value="32"    change="-8.3% from last month"  positive={false} iconColor="#16a34a" iconBg="#f0fdf4" />
-                <SummaryCard icon={<FiUsers />}     title="Users"         value="156"   change="+5.2% from last month"  iconColor="#7c3aed" iconBg="#f5f3ff" />
-                <SummaryCard icon={<FiLayers />}    title="Departments"   value="12"    change="+3.1% from last month"  iconColor="#ea580c" iconBg="#fff7ed" />
+                <SummaryCard icon={<FiMonitor />}   title="Total Assets"  value={stats?.total_assets  ?? "—"} change="+12.5% from last month" iconColor="#2563eb" iconBg="#eff6ff" />
+                <SummaryCard icon={<FiClipboard />} title="Open Tickets"  value={stats?.open_tickets  ?? "—"} change="-8.3% from last month"  positive={false} iconColor="#16a34a" iconBg="#f0fdf4" />
+                <SummaryCard icon={<FiUsers />}     title="Users"         value={stats?.total_users   ?? "—"} change="+5.2% from last month"  iconColor="#7c3aed" iconBg="#f5f3ff" />
+                <SummaryCard icon={<FiLayers />}    title="Departments"   value={stats?.total_departments ?? "—"} change="+3.1% from last month" iconColor="#ea580c" iconBg="#fff7ed" />
             </section>
 
             {/* ── Main Body ── */}
@@ -193,17 +233,23 @@ function Dashboard() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {recentTickets.map(t => (
+                                    {recentTickets.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={6} style={{ textAlign: "center", color: "#94a3b8", padding: "1.5rem" }}>
+                                                No tickets yet
+                                            </td>
+                                        </tr>
+                                    ) : recentTickets.map(t => (
                                         <tr key={t.id}>
                                             <td>
                                                 <span className="row-dot" />
-                                                {t.id}
+                                                {t.ticket_number}
                                             </td>
-                                            <td>{t.subject}</td>
-                                            <td>{t.requester}</td>
+                                            <td>{t.title}</td>
+                                            <td>{t.created_by ?? "—"}</td>
                                             <td><PriorityBadge priority={t.priority} /></td>
                                             <td><TicketStatusBadge status={t.status} /></td>
-                                            <td>{t.createdAt}</td>
+                                            <td>{fmtDate(t.created_at)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -217,9 +263,11 @@ function Dashboard() {
                             <h2>Ticket Status Overview</h2>
                         </div>
                         <div className="chart-area">
-                            <DonutChart segments={ticketSegments} total="32" />
+                            <DonutChart segments={ticketSegments} total={totalTickets} />
                             <div className="chart-legend">
-                                {ticketSegments.map(s => (
+                                {ticketSegments.length === 0 ? (
+                                    <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>No ticket data</p>
+                                ) : ticketSegments.map(s => (
                                     <div key={s.label} className="legend-row">
                                         <span className="legend-dot" style={{ background: s.color }} />
                                         <span className="legend-label">{s.label}</span>
@@ -248,13 +296,19 @@ function Dashboard() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {recentAssets.map(a => (
+                                    {recentAssets.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={5} style={{ textAlign: "center", color: "#94a3b8", padding: "1.5rem" }}>
+                                                No assets yet
+                                            </td>
+                                        </tr>
+                                    ) : recentAssets.map(a => (
                                         <tr key={a.id}>
-                                            <td>{a.id}</td>
-                                            <td>{a.name}</td>
-                                            <td>{a.type}</td>
-                                            <td>{a.assignedTo}</td>
-                                            <td>{a.addedOn}</td>
+                                            <td>{a.asset_tag}</td>
+                                            <td>{a.asset_name}</td>
+                                            <td>{a.category}</td>
+                                            <td>{a.assigned_to ?? "Unassigned"}</td>
+                                            <td>{fmtDate(a.purchase_date)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -268,9 +322,11 @@ function Dashboard() {
                             <h2>Asset Distribution</h2>
                         </div>
                         <div className="chart-area">
-                            <DonutChart segments={assetSegments} total="1,248" />
+                            <DonutChart segments={assetSegments} total={totalAssets} />
                             <div className="chart-legend">
-                                {assetSegments.map(s => (
+                                {assetSegments.length === 0 ? (
+                                    <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>No asset data</p>
+                                ) : assetSegments.map(s => (
                                     <div key={s.label} className="legend-row">
                                         <span className="legend-dot" style={{ background: s.color }} />
                                         <span className="legend-label">{s.label}</span>
@@ -356,7 +412,9 @@ function Dashboard() {
                             <div className="alert-item alert-warning">
                                 <FiAlertCircle className="alert-icon" />
                                 <div>
-                                    <p className="alert-msg">12 tickets are waiting for assignment</p>
+                                    <p className="alert-msg">
+                                        {stats?.open_tickets ?? 0} tickets are waiting for assignment
+                                    </p>
                                     <a href="#" className="alert-link">View tickets <FiArrowRight size={11} /></a>
                                 </div>
                             </div>
