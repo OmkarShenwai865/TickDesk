@@ -1,3 +1,4 @@
+import { useLocation } from "react-router-dom";
 import {
     FiBell,
     FiSearch,
@@ -7,12 +8,35 @@ import {
 
 import "./Navbar.css";
 
+const PAGE_TITLES = {
+    "/dashboard":      "Dashboard",
+    "/assets":         "Assets",
+    "/tickets":        "Tickets",
+    "/users":          "Users",
+    "/departments":    "Departments",
+    "/reports":        "Reports",
+    "/knowledge-base": "Knowledge Base",
+    "/settings":       "Settings",
+};
+
+function getTitle(pathname) {
+    // exact match first
+    if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
+    // ticket detail: /tickets/:id
+    if (pathname.startsWith("/tickets/")) return "Ticket Detail";
+    // any settings sub-page
+    if (pathname.startsWith("/settings")) return "Settings";
+    return "TickDesk";
+}
+
 function Navbar() {
+    const { pathname } = useLocation();
+
     return (
         <header className="navbar">
 
             {/* ── Page title ── */}
-            <h1 className="page-title">Dashboard</h1>
+            <h1 className="page-title">{getTitle(pathname)}</h1>
 
             {/* ── Search ── */}
             <div className="navbar-center">

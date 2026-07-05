@@ -30,8 +30,7 @@ const userStats = [
         value: "1,284",
         color: "#2563eb",
         bg: "#eff6ff",
-        badge: "+4% ↑",
-        badgeType: "green",
+        trend: { dir: "up", pct: 4, text: "from last month" },
     },
     {
         Icon: FiUserCheck,
@@ -39,8 +38,7 @@ const userStats = [
         value: "1,152",
         color: "#16a34a",
         bg: "#f0fdf4",
-        badge: "+12% ↑",
-        badgeType: "green",
+        trend: { dir: "up", pct: 12, text: "from last month" },
     },
     {
         Icon: FiHeadphones,
@@ -48,8 +46,7 @@ const userStats = [
         value: "24",
         color: "#ea580c",
         bg: "#fff7ed",
-        badge: "Steady",
-        badgeType: "gray",
+        trend: { dir: "neutral", pct: 0, text: "no change" },
     },
     {
         Icon: FiShield,
@@ -57,8 +54,7 @@ const userStats = [
         value: "8",
         color: "#7c3aed",
         bg: "#faf5ff",
-        badge: "Secured",
-        badgeType: "gray",
+        trend: { dir: "down", pct: 1, text: "from last month" },
     },
 ];
 
@@ -427,16 +423,23 @@ function Users() {
 
             {/* ── Stat Cards ── */}
             <section className="usr-stats">
-                {userStats.map(({ Icon, label, value, color, bg, badge, badgeType }) => (
+                {userStats.map(({ Icon, label, value, color, bg, trend }) => (
                     <div key={label} className="usr-stat-card">
                         <div className="usr-stat-icon" style={{ background: bg, color }}>
                             <Icon size={20} />
                         </div>
                         <div className="usr-stat-text">
                             <p className="usr-stat-label">{label}</p>
-                            <div className="usr-stat-row">
-                                <p className="usr-stat-value">{value}</p>
-                                <span className={`usr-stat-badge usr-badge-${badgeType}`}>{badge}</span>
+                            <p className="usr-stat-value">{value}</p>
+                            <div className={`usr-trend usr-trend-${trend.dir}`}>
+                                <span className="usr-trend-arrow">
+                                    {trend.dir === "up" ? "↑" : trend.dir === "down" ? "↓" : "→"}
+                                </span>
+                                <span className="usr-trend-pct">
+                                    {trend.dir === "neutral"
+                                        ? "No change"
+                                        : `${trend.dir === "down" ? "-" : "+"}${trend.pct}% ${trend.text}`}
+                                </span>
                             </div>
                         </div>
                     </div>

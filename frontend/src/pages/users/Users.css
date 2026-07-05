@@ -140,39 +140,37 @@
     margin-bottom: 4px;
 }
 
-.usr-stat-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
 .usr-stat-value {
     font-size: 28px;
     font-weight: 700;
     color: #0f172a;
     line-height: 1;
+    margin: 4px 0 6px;
 }
 
-.usr-stat-badge {
+/* Trend row */
+.usr-trend {
     display: inline-flex;
     align-items: center;
-    padding: 2px 8px;
-    border-radius: 20px;
-    font-size: 11px;
+    gap: 4px;
+    font-size: 12px;
     font-weight: 600;
     white-space: nowrap;
 }
 
-.usr-badge-green {
-    background: #f0fdf4;
-    color: #16a34a;
+.usr-trend-arrow {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
 }
 
-.usr-badge-gray {
-    background: #f3f4f6;
-    color: #6b7280;
+.usr-trend-pct {
+    font-weight: 500;
 }
+
+.usr-trend-up   { color: #16a34a; }
+.usr-trend-down { color: #dc2626; }
+.usr-trend-neutral { color: #6b7280; }
 
 /* ===========================
    Body layout

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import Login from "./pages/auth/Login";
 import Dashboard from "./pages/dashboard/Dashboard";
@@ -9,10 +9,15 @@ import TicketDetail from "./pages/tickets/TicketDetail";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import AppLayout from "./layouts/AppLayout";
 import Users from "./pages/users/Users";
-const Departments = () => <h1>Departments</h1>;
-const Reports = () => <h1>Reports</h1>;
-const KnowledgeBase = () => <h1>Knowledge Base</h1>;
-const Settings = () => <h1>Settings</h1>;
+import Departments from "./pages/departments/Departments";
+import Reports from "./pages/reports/Reports";
+import KnowledgeBase from "./pages/knowledge-base/KnowledgeBase";
+import Settings from "./pages/settings/Settings";
+import General from "./pages/settings/General";
+import AccessSecurity from "./pages/settings/AccessSecurity";
+import Helpdesk from "./pages/settings/Helpdesk";
+import Notifications from "./pages/settings/Notifications";
+import SystemSettings from "./pages/settings/System";
 
 function App() {
     return (
@@ -37,7 +42,14 @@ function App() {
                     <Route path="/departments" element={<Departments />} />
                     <Route path="/reports" element={<Reports />} />
                     <Route path="/knowledge-base" element={<KnowledgeBase />} />
-                    <Route path="/settings" element={<Settings />} />
+                    <Route path="/settings" element={<Settings />}>
+                      <Route index              element={<Navigate to="/settings/general" replace />} />
+                      <Route path="general"         element={<General />} />
+                      <Route path="access-security" element={<AccessSecurity />} />
+                      <Route path="helpdesk"        element={<Helpdesk />} />
+                      <Route path="notifications"   element={<Notifications />} />
+                      <Route path="system"          element={<SystemSettings />} />
+                    </Route>
                 </Route>
             </Routes>
         </BrowserRouter>
