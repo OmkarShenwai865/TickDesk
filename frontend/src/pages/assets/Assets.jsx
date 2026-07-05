@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import api from "../../services/api";
 import "./Assets.css";
 
 import {
@@ -19,14 +21,7 @@ import {
     FiTag,
 } from "react-icons/fi";
 
-// ─── Static data ──────────────────────────────────────────────────────────────
-
-const assetStats = [
-    { Icon: FiMonitor,     label: "TOTAL ASSETS", value: "1,248", color: "#2563eb", bg: "#eff6ff" },
-    { Icon: FiUser,        label: "ASSIGNED",     value: "986",   color: "#7c3aed", bg: "#f5f3ff" },
-    { Icon: FiCheckCircle, label: "AVAILABLE",    value: "212",   color: "#16a34a", bg: "#f0fdf4" },
-    { Icon: FiTool,        label: "MAINTENANCE",  value: "50",    color: "#ea580c", bg: "#fff7ed" },
-];
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const catIconMap = {
     Laptop:     { Icon: FiMonitor,    color: "#2563eb" },
@@ -34,57 +29,24 @@ const catIconMap = {
     Printer:    { Icon: FiPrinter,    color: "#ea580c" },
     Mobile:     { Icon: FiSmartphone, color: "#16a34a" },
     Desktop:    { Icon: FiCpu,        color: "#0891b2" },
-    Peripheral: { Icon: FiCpu,        color: "#6b7280" },
+    Networking: { Icon: FiCpu,        color: "#06b6d4" },
+    Server:     { Icon: FiCpu,        color: "#ef4444" },
+    Other:      { Icon: FiCpu,        color: "#6b7280" },
 };
 
-const assets = [
-    { id: "AST-2024-001", name: 'MacBook Pro M3 14"',   category: "Laptop",     assignedTo: "Alex Rivera",     purchaseDate: "Mar 12, 2024", status: "Assigned"    },
-    { id: "AST-2024-045", name: 'Dell UltraSharp 27"',  category: "Monitor",    assignedTo: "—",               purchaseDate: "Feb 05, 2024", status: "Available"   },
-    { id: "AST-2023-992", name: "HP LaserJet Pro",       category: "Printer",    assignedTo: "Marketing Dept.", purchaseDate: "Nov 20, 2023", status: "Assigned"    },
-    { id: "AST-2024-012", name: "iPhone 15 Pro",         category: "Mobile",     assignedTo: "Sarah Johnson",   purchaseDate: "Jan 08, 2024", status: "Assigned"    },
-    { id: "AST-2023-876", name: "Dell OptiPlex 7090",    category: "Desktop",    assignedTo: "IT Dept.",        purchaseDate: "Sep 14, 2023", status: "Assigned"    },
-    { id: "AST-2024-033", name: "Logitech MX Master 3",  category: "Peripheral", assignedTo: "—",              purchaseDate: "Feb 22, 2024", status: "Available"   },
-    { id: "AST-2023-441", name: 'Samsung 27" Monitor',   category: "Monitor",    assignedTo: "James Wilson",    purchaseDate: "Jul 30, 2023", status: "Maintenance" },
-    { id: "AST-2022-654", name: "ThinkPad X1 Carbon",    category: "Laptop",     assignedTo: "—",              purchaseDate: "Dec 10, 2022", status: "Retired"     },
-    { id: "AST-2024-078", name: "Cisco Catalyst Switch",  category: "Peripheral", assignedTo: "Server Room",   purchaseDate: "Mar 01, 2024", status: "Assigned"    },
-    { id: "AST-2023-320", name: "Canon imageCLASS",       category: "Printer",    assignedTo: "Finance Dept.", purchaseDate: "May 18, 2023", status: "Maintenance" },
-];
+function fmtDate(iso) {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString("en-US", {
+        month: "short", day: "numeric", year: "numeric",
+    });
+}
+
+// ─── Static sidebar data (no API yet) ─────────────────────────────────────────
 
 const activities = [
-    {
-        dot: "#2563eb",
-        title: "MacBook Pro 14” (AST-2024-001)",
-        action: "was assigned to",
-        target: "Alex Rivera",
-        period: false,
-        sub: "Action performed by Administrator",
-        time: "10 mins ago",
-    },
-    {
-        dot: "#16a34a",
-        title: "Dell Monitor (AST-2023-112)",
-        action: "was returned by",
-        target: "Finance Dept.",
-        period: false,
-        sub: "Asset marked as ‘Available’",
-        time: "2 hours ago",
-    },
-    {
-        dot: "#ea580c",
-        title: "HP LaserJet Printer",
-        action: "reported a paper jam failure.",
-        target: "",
-        period: false,
-        sub: "Maintenance ticket #T-9923 created",
-        time: "Yesterday",
-    },
-];
-
-const distribution = [
-    { label: "Laptops",  count: 620, pct: 49.7, color: "#2563eb" },
-    { label: "Desktops", count: 320, pct: 25.6, color: "#16a34a" },
-    { label: "Monitors", count: 180, pct: 14.4, color: "#9ca3af" },
-    { label: "Printers", count: 85,  pct: 6.8,  color: "#d1d5db" },
+    { dot: "#2563eb", title: 'MacBook Pro 14" (AST-2024-001)', action: "was assigned to",      target: "Alex Rivera",   sub: "Action performed by Administrator", time: "10 mins ago" },
+    { dot: "#16a34a", title: "Dell Monitor (AST-2023-112)",    action: "was returned by",      target: "Finance Dept.", sub: "Asset marked as 'Available'",       time: "2 hours ago" },
+    { dot: "#ea580c", title: "HP LaserJet Printer",            action: "reported a paper jam failure.", target: "",     sub: "Maintenance ticket #T-9923 created", time: "Yesterday"  },
 ];
 
 const warrantyItems = [
@@ -103,7 +65,7 @@ const quickActions = [
 // ─── Small helpers ────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }) {
-    const key = status.toLowerCase().replace(" ", "-");
+    const key = status.toLowerCase().replace(/\s+/g, "-");
     return <span className={`ast-status ast-status-${key}`}>{status}</span>;
 }
 
@@ -119,6 +81,61 @@ function CatIcon({ category }) {
 // ─── Assets Page ─────────────────────────────────────────────────────────────
 
 function Assets() {
+    const [stats,        setStats]        = useState(null);
+    const [assets,       setAssets]       = useState([]);
+    const [totalCount,   setTotalCount]   = useState(0);
+    const [page,         setPage]         = useState(1);
+    const [distribution, setDistribution] = useState([]);
+    const [loading,      setLoading]      = useState(true);
+
+    const PAGE_SIZE = 10;
+    const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+    const loadAssets = async (pg = 1) => {
+        try {
+            const res = await api.get(`assets/?page=${pg}`);
+            setAssets(res.data.results);
+            setTotalCount(res.data.count);
+        } catch (err) {
+            console.error("Assets load error:", err);
+        }
+    };
+
+    useEffect(() => {
+        const load = async () => {
+            setLoading(true);
+            try {
+                const [statsRes, distRes] = await Promise.all([
+                    api.get("assets/stats/"),
+                    api.get("assets/distribution/"),
+                ]);
+                setStats(statsRes.data);
+                setDistribution(distRes.data);
+            } catch (err) {
+                console.error("Assets init error:", err);
+            }
+            await loadAssets(1);
+            setLoading(false);
+        };
+        load();
+    }, []);
+
+    const handlePage = async (pg) => {
+        if (pg < 1 || pg > totalPages) return;
+        setPage(pg);
+        await loadAssets(pg);
+    };
+
+    const statCards = [
+        { Icon: FiMonitor,     label: "TOTAL ASSETS", value: stats?.total       ?? "—", color: "#2563eb", bg: "#eff6ff" },
+        { Icon: FiUser,        label: "ASSIGNED",     value: stats?.assigned    ?? "—", color: "#7c3aed", bg: "#f5f3ff" },
+        { Icon: FiCheckCircle, label: "AVAILABLE",    value: stats?.available   ?? "—", color: "#16a34a", bg: "#f0fdf4" },
+        { Icon: FiTool,        label: "MAINTENANCE",  value: stats?.maintenance ?? "—", color: "#ea580c", bg: "#fff7ed" },
+    ];
+
+    const start = (page - 1) * PAGE_SIZE + 1;
+    const end   = Math.min(page * PAGE_SIZE, totalCount);
+
     return (
         <div className="assets-page">
 
@@ -139,7 +156,7 @@ function Assets() {
 
             {/* ── Stat cards ── */}
             <section className="assets-stats">
-                {assetStats.map(({ Icon, label, value, color, bg }) => (
+                {statCards.map(({ Icon, label, value, color, bg }) => (
                     <div key={label} className="stat-card">
                         <div className="stat-icon-wrap" style={{ background: bg, color }}>
                             <Icon size={20} />
@@ -181,17 +198,29 @@ function Assets() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {assets.map(a => (
-                                        <tr key={a.id}>
-                                            <td className="col-id">{a.id}</td>
-                                            <td className="col-name">
-                                                <CatIcon category={a.category} />
-                                                {a.name}
+                                    {loading ? (
+                                        <tr>
+                                            <td colSpan={6} style={{ textAlign: "center", color: "#94a3b8", padding: "2rem" }}>
+                                                Loading…
                                             </td>
-                                            <td>{a.category}</td>
-                                            <td>{a.assignedTo}</td>
-                                            <td className="col-date">{a.purchaseDate}</td>
-                                            <td><StatusBadge status={a.status} /></td>
+                                        </tr>
+                                    ) : assets.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={6} style={{ textAlign: "center", color: "#94a3b8", padding: "2rem" }}>
+                                                No assets found
+                                            </td>
+                                        </tr>
+                                    ) : assets.map(a => (
+                                        <tr key={a.id}>
+                                            <td className="col-id">{a.asset_tag}</td>
+                                            <td className="col-name">
+                                                <CatIcon category={a.category_display} />
+                                                {a.asset_name}
+                                            </td>
+                                            <td>{a.category_display}</td>
+                                            <td>{a.assigned_to_name ?? "—"}</td>
+                                            <td className="col-date">{fmtDate(a.purchase_date)}</td>
+                                            <td><StatusBadge status={a.status_display} /></td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -200,13 +229,27 @@ function Assets() {
 
                         {/* Pagination */}
                         <div className="pagination-row">
-                            <span className="pag-info">Showing 1–10 of 1,248 assets</span>
+                            <span className="pag-info">
+                                {totalCount === 0
+                                    ? "No assets"
+                                    : `Showing ${start}–${end} of ${totalCount} assets`}
+                            </span>
                             <div className="pag-controls">
-                                <button className="pag-btn"><FiChevronLeft size={13} /></button>
-                                <button className="pag-btn pag-active">1</button>
-                                <button className="pag-btn">2</button>
-                                <button className="pag-btn">3</button>
-                                <button className="pag-btn"><FiChevronRight size={13} /></button>
+                                <button className="pag-btn" onClick={() => handlePage(page - 1)} disabled={page === 1}>
+                                    <FiChevronLeft size={13} />
+                                </button>
+                                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(pg => (
+                                    <button
+                                        key={pg}
+                                        className={`pag-btn${page === pg ? " pag-active" : ""}`}
+                                        onClick={() => handlePage(pg)}
+                                    >
+                                        {pg}
+                                    </button>
+                                ))}
+                                <button className="pag-btn" onClick={() => handlePage(page + 1)} disabled={page === totalPages}>
+                                    <FiChevronRight size={13} />
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -228,7 +271,6 @@ function Assets() {
                                             <strong>{act.title}</strong>{" "}
                                             {act.action}{" "}
                                             {act.target && <strong>{act.target}</strong>}
-                                            {act.period ? "." : ""}
                                         </p>
                                         <p className="act-sub">{act.sub}</p>
                                     </div>
@@ -263,7 +305,9 @@ function Assets() {
                             <button className="icon-more"><FiMoreHorizontal size={16} /></button>
                         </div>
                         <div className="dist-list">
-                            {distribution.map(d => (
+                            {distribution.length === 0 ? (
+                                <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>No data yet</p>
+                            ) : distribution.map(d => (
                                 <div key={d.label} className="dist-item">
                                     <div className="dist-row">
                                         <span className="dist-label">{d.label}</span>

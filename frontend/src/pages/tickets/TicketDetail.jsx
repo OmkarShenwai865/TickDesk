@@ -1,9 +1,11 @@
 import "./Tickets.css";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import api from "../../services/api";
 
 import {
     FiInfo,
     FiShare2,
-    FiMapPin,
     FiRefreshCcw,
     FiPaperclip,
     FiEdit2,
@@ -21,87 +23,98 @@ import {
     FiList,
 } from "react-icons/fi";
 
-// ─── Static data ──────────────────────────────────────────────────────────────
+// ─── Static sidebar data (no backend model yet) ───────────────────────────────
 
 const activityLogs = [
-    {
-        Icon: FiCheckCircle,
-        color: "#2563eb",
-        text: (
-            <>
-                Status changed to{" "}
-                <span className="log-highlight-blue">In Progress</span>{" "}
-                by <strong>David Chen</strong>
-            </>
-        ),
-        time: "Oct 25, 2023 • 2:10 PM",
-    },
-    {
-        Icon: FiUser,
-        color: "#7c3aed",
-        text: (
-            <>
-                Ticket assigned to <strong>David Chen</strong> by Administrator
-            </>
-        ),
-        time: "Oct 24, 2023 • 3:45 PM",
-    },
-    {
-        Icon: FiAlertCircle,
-        color: "#6b7280",
-        text: (
-            <>
-                Ticket created by <strong>Rohit Sharma</strong>
-            </>
-        ),
-        time: "Oct 24, 2023 • 11:32 AM",
-    },
+    { Icon: FiCheckCircle, color: "#2563eb", text: <>Status changed to <span className="log-highlight-blue">In Progress</span> by <strong>Admin</strong></>,  time: "—" },
+    { Icon: FiUser,        color: "#7c3aed", text: <>Ticket assigned by Administrator</>,                                                                        time: "—" },
+    { Icon: FiAlertCircle, color: "#6b7280", text: <>Ticket created</>,                                                                                          time: "—" },
 ];
 
 const attachments = [
-    { name: "screenshot_error_1004.png", size: "2.4 MB",  type: "image" },
-    { name: "vpn_logs.txt",              size: "12 KB",   type: "file"  },
+    { name: "screenshot_error.png", size: "2.4 MB", type: "image" },
+    { name: "logs.txt",             size: "12 KB",  type: "file"  },
 ];
 
 const messages = [
-    {
-        initials: "DC",
-        avatarColor: "#2563eb",
-        text: "Hello Rohit, I've seen your log files. It looks like a protocol mismatch in the new macOS update. Let me check the config.",
-        sender: "DAVID",
-        time: "2:14 PM",
-        type: "sent",
-    },
-    {
-        initials: "RS",
-        avatarColor: "#6b7280",
-        text: "Thanks David. Should I try downgrading the client or is there a patch?",
-        sender: "ROHIT",
-        time: "2:16 PM",
-        type: "received",
-    },
+    { initials: "AD", avatarColor: "#2563eb", text: "Hello, I'm looking into this issue now.", sender: "ADMIN", time: "—", type: "sent"     },
+    { initials: "U",  avatarColor: "#6b7280", text: "Thanks, please let me know what you find.", sender: "USER",  time: "—", type: "received" },
 ];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const statusBadgeClass = { open: "tbadge-open", in_progress: "tbadge-progress", resolved: "tbadge-resolved", closed: "tbadge-closed" };
+const priorityBadgeClass = { low: "tbadge-low", medium: "tbadge-medium", high: "tbadge-high", critical: "tbadge-critical" };
+
+function fmtDate(iso) {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
 
 // ─── Ticket Detail Page ────────────────────────────────────────────────────────
 
 function TicketDetail() {
+    const { id }  = useParams();
+    const [ticket, setTicket] = useState(null);
+    const [notFound, setNotFound] = useState(false);
+
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const res = await api.get(`tickets/${id}/`);
+                setTicket(res.data);
+            } catch (err) {
+                if (err.response?.status === 404) setNotFound(true);
+                else console.error("Ticket detail error:", err);
+            }
+        };
+        load();
+    }, [id]);
+
+    if (notFound) {
+        return (
+            <div className="ticket-page" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
+                <p style={{ color: "#94a3b8", fontSize: "1.1rem" }}>Ticket not found.</p>
+            </div>
+        );
+    }
+
+    if (!ticket) {
+        return (
+            <div className="ticket-page" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
+                <p style={{ color: "#94a3b8", fontSize: "1.1rem" }}>Loading…</p>
+            </div>
+        );
+    }
+
+    const statusLabel   = ticket.status_display   ?? ticket.status;
+    const priorityLabel = ticket.priority_display ?? ticket.priority;
+    const sBadge = statusBadgeClass[ticket.status]   ?? "tbadge-open";
+    const pBadge = priorityBadgeClass[ticket.priority] ?? "tbadge-medium";
+
+    const requesterName = ticket.created_by_name  ?? "—";
+    const assigneeName  = ticket.assigned_to_name ?? "Unassigned";
+    const deptName      = ticket.department_name  ?? "—";
+
+    const requesterInitials = requesterName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+    const assigneeInitials  = assigneeName === "Unassigned" ? "?" : assigneeName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+
     return (
         <div className="ticket-page">
 
             {/* ── Ticket Header ── */}
             <div className="ticket-header">
-
                 <div className="ticket-header-left">
                     <div className="ticket-id-row">
-                        <h1 className="ticket-id">TK-1048</h1>
-                        <span className="tbadge tbadge-progress">IN PROGRESS</span>
-                        <span className="tbadge tbadge-high">
-                            <span className="tbadge-exclaim">!</span> HIGH PRIORITY
+                        <h1 className="ticket-id">{ticket.ticket_number}</h1>
+                        <span className={`tbadge ${sBadge}`}>{statusLabel.toUpperCase()}</span>
+                        <span className={`tbadge ${pBadge}`}>
+                            <span className="tbadge-exclaim">!</span> {priorityLabel.toUpperCase()} PRIORITY
                         </span>
                     </div>
                     <p className="ticket-created">
-                        Created on Oct 24, 2023 &bull; Assigned to{" "}
-                        <a href="#" className="assignee-link">David Chen</a>
+                        Created on {fmtDate(ticket.created_at)} &bull; Assigned to{" "}
+                        <a href="#" className="assignee-link">{assigneeName}</a>
                     </p>
                 </div>
 
@@ -116,7 +129,6 @@ function TicketDetail() {
                         <FiCheckCircle size={14} /> Resolve
                     </button>
                 </div>
-
             </div>
 
             {/* ── Content ── */}
@@ -133,61 +145,50 @@ function TicketDetail() {
                         </div>
                         <hr className="t-divider" />
 
-                        {/* Subject */}
                         <div className="tf-group">
                             <label className="tf-label">SUBJECT</label>
-                            <p className="tf-subject">Unable to connect to Global VPN</p>
+                            <p className="tf-subject">{ticket.title}</p>
                         </div>
 
-                        {/* Category + Department */}
                         <div className="tf-row">
                             <div className="tf-group">
                                 <label className="tf-label">CATEGORY</label>
                                 <p className="tf-value tf-icon-val">
                                     <FiShare2 size={13} />
-                                    Network
+                                    General
                                 </p>
                             </div>
                             <div className="tf-group">
                                 <label className="tf-label">DEPARTMENT</label>
-                                <p className="tf-value">Information Technology</p>
+                                <p className="tf-value">{deptName}</p>
                             </div>
                         </div>
 
-                        {/* Requester + Location */}
                         <div className="tf-row">
                             <div className="tf-group">
                                 <label className="tf-label">REQUESTER</label>
                                 <div className="tf-requester">
-                                    <div className="req-avatar">RS</div>
+                                    <div className="req-avatar">{requesterInitials}</div>
                                     <div>
-                                        <p className="tf-name">Rohit Sharma</p>
-                                        <p className="tf-email">rohit.s@tickdesk.ent</p>
+                                        <p className="tf-name">{requesterName}</p>
                                     </div>
                                 </div>
                             </div>
                             <div className="tf-group">
-                                <label className="tf-label">LOCATION</label>
-                                <p className="tf-value tf-icon-val">
-                                    <FiMapPin size={13} />
-                                    Raipur Office, HQ
-                                </p>
+                                <label className="tf-label">ASSIGNED TO</label>
+                                <div className="tf-requester">
+                                    <div className="req-avatar" style={{ background: "#eff6ff", color: "#2563eb" }}>{assigneeInitials}</div>
+                                    <div>
+                                        <p className="tf-name">{assigneeName}</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Description */}
                         <div className="tf-group">
                             <label className="tf-label">DESCRIPTION</label>
                             <div className="tf-description">
-                                <p>
-                                    User reports that since the system update yesterday (macOS Sonoma 14.1),
-                                    the GlobalProtect VPN client fails to establish a secure tunnel.
-                                    It stucks at &ldquo;Connecting&rdquo; and eventually times out with Error 1004.
-                                </p>
-                                <p>
-                                    Steps taken so far: Restarted machine, re-installed client, flushed DNS cache.
-                                    Still persistent on corporate and home Wi-Fi.
-                                </p>
+                                <p>{ticket.description || "No description provided."}</p>
                             </div>
                         </div>
                     </div>
@@ -195,7 +196,6 @@ function TicketDetail() {
                     {/* Activity + Attachments */}
                     <div className="ticket-bottom-grid">
 
-                        {/* Activity Logs */}
                         <div className="t-card">
                             <div className="t-card-heading">
                                 <FiRefreshCcw className="t-heading-icon" />
@@ -206,14 +206,8 @@ function TicketDetail() {
                                 {activityLogs.map((log, i) => (
                                     <div key={i} className="log-item">
                                         <div className="log-icon-col">
-                                            <log.Icon
-                                                size={15}
-                                                style={{ color: log.color }}
-                                                className="log-icon"
-                                            />
-                                            {i < activityLogs.length - 1 && (
-                                                <span className="log-line" />
-                                            )}
+                                            <log.Icon size={15} style={{ color: log.color }} className="log-icon" />
+                                            {i < activityLogs.length - 1 && <span className="log-line" />}
                                         </div>
                                         <div className="log-body">
                                             <p className="log-text">{log.text}</p>
@@ -224,7 +218,6 @@ function TicketDetail() {
                             </div>
                         </div>
 
-                        {/* Attachments */}
                         <div className="t-card">
                             <div className="t-card-heading">
                                 <FiPaperclip className="t-heading-icon" />
@@ -235,9 +228,7 @@ function TicketDetail() {
                                 {attachments.map((a, i) => (
                                     <div key={i} className="attachment-item">
                                         <div className={`att-thumb att-${a.type}`}>
-                                            {a.type === "image"
-                                                ? <FiImage size={18} />
-                                                : <FiFile size={18} />}
+                                            {a.type === "image" ? <FiImage size={18} /> : <FiFile size={18} />}
                                         </div>
                                         <div className="att-info">
                                             <p className="att-name">{a.name}</p>
@@ -288,30 +279,31 @@ function TicketDetail() {
                         <div className="participants-list">
                             <div className="participant-item">
                                 <div className="p-avatar p-avatar-gray">
-                                    RS
+                                    {requesterInitials}
                                     <span className="p-online-dot" />
                                 </div>
                                 <div className="p-info">
-                                    <p className="p-name">Rohit Sharma</p>
+                                    <p className="p-name">{requesterName}</p>
                                     <p className="p-role">Requester</p>
                                 </div>
                             </div>
-                            <div className="participant-item">
-                                <div className="p-avatar p-avatar-blue">
-                                    DC
-                                    <span className="p-online-dot" />
+                            {assigneeName !== "Unassigned" && (
+                                <div className="participant-item">
+                                    <div className="p-avatar p-avatar-blue">
+                                        {assigneeInitials}
+                                        <span className="p-online-dot" />
+                                    </div>
+                                    <div className="p-info">
+                                        <p className="p-name">{assigneeName}</p>
+                                        <p className="p-role">Assigned Agent</p>
+                                    </div>
                                 </div>
-                                <div className="p-info">
-                                    <p className="p-name">David Chen</p>
-                                    <p className="p-role">Engineer (Assigned)</p>
-                                </div>
-                            </div>
+                            )}
                         </div>
                     </div>
 
                     {/* Live Conversation */}
                     <div className="t-card chat-card">
-
                         <div className="chat-header">
                             <FiMessageSquare size={15} className="chat-header-icon" />
                             <h2>Live Conversation</h2>
@@ -321,50 +313,33 @@ function TicketDetail() {
                         <div className="chat-messages">
                             {messages.map((msg, i) => (
                                 <div key={i} className={`chat-msg ${msg.type}`}>
-                                    <div className={`chat-bubble ${msg.type}-bubble`}>
-                                        {msg.text}
-                                    </div>
-                                    <p className="chat-meta">
-                                        {msg.sender} &bull; {msg.time}
-                                    </p>
+                                    <div className={`chat-bubble ${msg.type}-bubble`}>{msg.text}</div>
+                                    <p className="chat-meta">{msg.sender} &bull; {msg.time}</p>
                                 </div>
                             ))}
-
-                            {/* Typing indicator */}
                             <div className="typing-row">
-                                <div className="typing-dots">
-                                    <span /><span /><span />
-                                </div>
-                                <em className="typing-label">David is typing...</em>
+                                <div className="typing-dots"><span /><span /><span /></div>
+                                <em className="typing-label">Agent is typing...</em>
                             </div>
                         </div>
 
-                        {/* Quick action chips */}
                         <div className="chat-quick-chips">
                             <button className="quick-chip">Request Info</button>
                             <button className="quick-chip">Escalate</button>
                             <button className="quick-chip">Transfer</button>
                         </div>
 
-                        {/* Input area */}
                         <div className="chat-input-area">
-                            <input
-                                type="text"
-                                className="chat-input"
-                                placeholder="Type a message..."
-                            />
+                            <input type="text" className="chat-input" placeholder="Type a message..." />
                             <div className="chat-input-footer">
                                 <div className="chat-input-icons">
                                     <button className="chat-icon-btn"><FiPaperclip size={20} /></button>
                                     <button className="chat-icon-btn"><FiSmile size={20} /></button>
                                     <button className="chat-icon-btn"><FiImage size={20} /></button>
                                 </div>
-                                <button className="send-btn">
-                                    Send <FiSend size={13} />
-                                </button>
+                                <button className="send-btn">Send <FiSend size={13} /></button>
                             </div>
                         </div>
-
                     </div>
 
                 </aside>

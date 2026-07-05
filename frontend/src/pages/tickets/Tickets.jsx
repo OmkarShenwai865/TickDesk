@@ -1,6 +1,7 @@
 import "./TicketList.css";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../../services/api";
 
 import {
     FiFilter,
@@ -22,20 +23,7 @@ import {
     FiColumns,
 } from "react-icons/fi";
 
-// ─── Static data ──────────────────────────────────────────────────────────────
-
-const tickets = [
-    { id: "TK-1048", subject: "Unable to connect to Global VPN",       requester: "Rohit Sharma",  category: "Network",    priority: "high",     status: "progress", assigned: "David Chen",  date: "Oct 25, 2023" },
-    { id: "TK-1047", subject: "Laptop screen flickering after update",  requester: "Priya Mehta",   category: "Hardware",   priority: "medium",   status: "open",     assigned: "Sarah Kim",   date: "Oct 24, 2023" },
-    { id: "TK-1046", subject: "MS Office activation key not working",   requester: "Arjun Patel",   category: "Software",   priority: "low",      status: "resolved", assigned: "Tom Wright",  date: "Oct 24, 2023" },
-    { id: "TK-1045", subject: "Email not syncing on mobile device",     requester: "Neha Singh",    category: "Email",      priority: "medium",   status: "open",     assigned: "David Chen",  date: "Oct 23, 2023" },
-    { id: "TK-1044", subject: "Printer offline in Finance department",  requester: "Rajesh Kumar",  category: "Hardware",   priority: "high",     status: "progress", assigned: "Sarah Kim",   date: "Oct 23, 2023" },
-    { id: "TK-1043", subject: "Can't access shared drive on Floor 3",   requester: "Anjali Desai",  category: "Network",    priority: "critical", status: "open",     assigned: "Unassigned",  date: "Oct 22, 2023" },
-    { id: "TK-1042", subject: "Zoom not connecting to audio devices",   requester: "Vikram Joshi",  category: "Software",   priority: "low",      status: "resolved", assigned: "Tom Wright",  date: "Oct 22, 2023" },
-    { id: "TK-1041", subject: "New employee laptop setup request",      requester: "HR Department", category: "Onboarding", priority: "medium",   status: "closed",   assigned: "David Chen",  date: "Oct 21, 2023" },
-    { id: "TK-1040", subject: "Antivirus alert on workstation WS-204",  requester: "Sanjay Gupta",  category: "Security",   priority: "critical", status: "progress", assigned: "Sarah Kim",   date: "Oct 21, 2023" },
-    { id: "TK-1039", subject: "Keyboard/mouse not working after dock",  requester: "Meera Reddy",   category: "Hardware",   priority: "low",      status: "resolved", assigned: "Tom Wright",  date: "Oct 20, 2023" },
-];
+// ─── Config maps (keyed by raw API values) ────────────────────────────────────
 
 const priorityConfig = {
     critical: { label: "Critical", bg: "#fef2f2", color: "#dc2626", dot: "#dc2626" },
@@ -45,30 +33,25 @@ const priorityConfig = {
 };
 
 const statusConfig = {
-    open:     { label: "Open",        bg: "#eff6ff", color: "#2563eb" },
-    progress: { label: "In Progress", bg: "#f0fdf4", color: "#16a34a" },
-    resolved: { label: "Resolved",    bg: "#f3f4f6", color: "#6b7280" },
-    closed:   { label: "Closed",      bg: "#faf5ff", color: "#7c3aed" },
+    open:        { label: "Open",        bg: "#eff6ff", color: "#2563eb" },
+    in_progress: { label: "In Progress", bg: "#f0fdf4", color: "#16a34a" },
+    resolved:    { label: "Resolved",    bg: "#f3f4f6", color: "#6b7280" },
+    closed:      { label: "Closed",      bg: "#faf5ff", color: "#7c3aed" },
 };
 
 const kanbanColumns = [
-    { key: "open",     label: "Open",        color: "#2563eb", headerBg: "#eff6ff", count: 87  },
-    { key: "progress", label: "In Progress", color: "#16a34a", headerBg: "#f0fdf4", count: 34  },
-    { key: "resolved", label: "Resolved",    color: "#6b7280", headerBg: "#f3f4f6", count: 127 },
-    { key: "closed",   label: "Closed",      color: "#7c3aed", headerBg: "#faf5ff", count: 34  },
+    { key: "open",        label: "Open",        color: "#2563eb", headerBg: "#eff6ff" },
+    { key: "in_progress", label: "In Progress", color: "#16a34a", headerBg: "#f0fdf4" },
+    { key: "resolved",    label: "Resolved",    color: "#6b7280", headerBg: "#f3f4f6" },
+    { key: "closed",      label: "Closed",      color: "#7c3aed", headerBg: "#faf5ff" },
 ];
 
-const priorityDist = [
-    { label: "Critical", count: 2,  pct: 20, color: "#dc2626" },
-    { label: "High",     count: 12, pct: 48, color: "#ea580c" },
-    { label: "Medium",   count: 18, pct: 72, color: "#d97706" },
-    { label: "Low",      count: 7,  pct: 28, color: "#16a34a" },
-];
-
-const slaItems = [
-    { label: "Within SLA", count: 203, color: "#16a34a" },
-    { label: "At Risk",    count: 28,  color: "#d97706" },
-    { label: "Breached",   count: 17,  color: "#dc2626" },
+const statusFilters = [
+    { key: "",            label: "All"         },
+    { key: "open",        label: "Open"        },
+    { key: "in_progress", label: "In Progress" },
+    { key: "resolved",    label: "Resolved"    },
+    { key: "closed",      label: "Closed"      },
 ];
 
 const quickActions = [
@@ -78,45 +61,134 @@ const quickActions = [
     { icon: <FiSettings />, label: "SLA Settings"  },
 ];
 
+const slaItems = [
+    { label: "Within SLA", count: 203, color: "#16a34a" },
+    { label: "At Risk",    count: 28,  color: "#d97706" },
+    { label: "Breached",   count: 17,  color: "#dc2626" },
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmtDate(iso) {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString("en-US", {
+        month: "short", day: "numeric", year: "numeric",
+    });
+}
+
 // ─── Kanban Card ──────────────────────────────────────────────────────────────
 
 function KanbanCard({ ticket, onClick }) {
-    const p = priorityConfig[ticket.priority];
+    const p = priorityConfig[ticket.priority] ?? priorityConfig.medium;
+    const assignee = ticket.assigned_to_name ?? "Unassigned";
     return (
         <div className="kb-card" onClick={onClick}>
             <div className="kb-card-top">
-                <span className="kb-ticket-id">{ticket.id}</span>
+                <span className="kb-ticket-id">{ticket.ticket_number}</span>
                 <span className="kb-priority-badge" style={{ background: p.bg, color: p.color }}>
                     <span className="kb-priority-dot" style={{ background: p.dot }} />
                     {p.label}
                 </span>
             </div>
-            <p className="kb-subject">{ticket.subject}</p>
+            <p className="kb-subject">{ticket.title}</p>
             <div className="kb-card-footer">
                 <div className="kb-assignee">
                     <div className="kb-avatar">
-                        {ticket.assigned === "Unassigned"
+                        {assignee === "Unassigned"
                             ? "?"
-                            : ticket.assigned.split(" ").map(w => w[0]).join("")}
+                            : assignee.split(" ").map(w => w[0]).join("").slice(0, 2)}
                     </div>
-                    <span className="kb-assignee-name">{ticket.assigned}</span>
+                    <span className="kb-assignee-name">{assignee}</span>
                 </div>
-                <span className="kb-date">{ticket.date.replace(", 2023", "")}</span>
+                <span className="kb-date">{fmtDate(ticket.created_at)}</span>
             </div>
         </div>
     );
 }
 
-// ─── Tickets List Page ─────────────────────────────────────────────────────────
+// ─── Tickets Page ─────────────────────────────────────────────────────────────
+
+const PAGE_SIZE = 10;
 
 function Tickets() {
     const navigate = useNavigate();
-    const [view, setView] = useState("table");
-    const [activeFilter, setActiveFilter] = useState("all");
+    const [view,          setView]         = useState("table");
+    const [activeFilter,  setActiveFilter] = useState("");
+    const [search,        setSearch]       = useState("");
 
-    const filteredTickets = activeFilter === "all"
-        ? tickets
-        : tickets.filter(t => t.status === activeFilter);
+    const [stats,         setStats]        = useState(null);
+    const [tickets,       setTickets]      = useState([]);
+    const [totalCount,    setTotalCount]   = useState(0);
+    const [page,          setPage]         = useState(1);
+    const [priorityDist,  setPriorityDist] = useState([]);
+    const [kanbanTickets, setKanbanTickets]= useState([]);
+
+    const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+    const loadTickets = async (pg = 1, statusVal = activeFilter, q = search) => {
+        try {
+            const params = new URLSearchParams({ page: pg, page_size: PAGE_SIZE });
+            if (statusVal) params.set('status', statusVal);
+            if (q)         params.set('search', q);
+            const res = await api.get(`tickets/?${params}`);
+            setTickets(res.data.results);
+            setTotalCount(res.data.count);
+        } catch (err) {
+            console.error("Tickets load error:", err);
+        }
+    };
+
+    const loadKanban = async () => {
+        try {
+            const res = await api.get("tickets/?page_size=100");
+            setKanbanTickets(res.data.results);
+        } catch (err) {
+            console.error("Kanban load error:", err);
+        }
+    };
+
+    useEffect(() => {
+        const init = async () => {
+            try {
+                const [statsRes, distRes] = await Promise.all([
+                    api.get("tickets/stats/"),
+                    api.get("tickets/priority-distribution/"),
+                ]);
+                setStats(statsRes.data);
+                setPriorityDist(distRes.data);
+            } catch (err) {
+                console.error("Tickets init error:", err);
+            }
+            await loadTickets(1, "", "");
+        };
+        init();
+    }, []);
+
+    useEffect(() => {
+        if (view === "kanban") loadKanban();
+    }, [view]);
+
+    const handleFilter = (key) => {
+        setActiveFilter(key);
+        setPage(1);
+        loadTickets(1, key, search);
+    };
+
+    const handleSearch = (e) => {
+        const q = e.target.value;
+        setSearch(q);
+        setPage(1);
+        loadTickets(1, activeFilter, q);
+    };
+
+    const handlePage = (pg) => {
+        if (pg < 1 || pg > totalPages) return;
+        setPage(pg);
+        loadTickets(pg, activeFilter, search);
+    };
+
+    const start = (page - 1) * PAGE_SIZE + 1;
+    const end   = Math.min(page * PAGE_SIZE, totalCount);
 
     return (
         <div className="tl-page">
@@ -142,7 +214,7 @@ function Tickets() {
                     </div>
                     <div>
                         <p className="tl-stat-label">TOTAL TICKETS</p>
-                        <p className="tl-stat-value">248</p>
+                        <p className="tl-stat-value">{stats?.total ?? "—"}</p>
                     </div>
                 </div>
                 <div className="tl-stat-card">
@@ -151,7 +223,7 @@ function Tickets() {
                     </div>
                     <div>
                         <p className="tl-stat-label">OPEN</p>
-                        <p className="tl-stat-value">87</p>
+                        <p className="tl-stat-value">{stats?.open ?? "—"}</p>
                     </div>
                 </div>
                 <div className="tl-stat-card">
@@ -160,7 +232,7 @@ function Tickets() {
                     </div>
                     <div>
                         <p className="tl-stat-label">IN PROGRESS</p>
-                        <p className="tl-stat-value">34</p>
+                        <p className="tl-stat-value">{stats?.in_progress ?? "—"}</p>
                     </div>
                 </div>
                 <div className="tl-stat-card">
@@ -169,7 +241,7 @@ function Tickets() {
                     </div>
                     <div>
                         <p className="tl-stat-label">RESOLVED</p>
-                        <p className="tl-stat-value">127</p>
+                        <p className="tl-stat-value">{stats?.resolved ?? "—"}</p>
                     </div>
                 </div>
             </div>
@@ -184,17 +256,11 @@ function Tickets() {
                         {/* Toolbar */}
                         <div className="tl-table-top">
                             <div className="tl-pills">
-                                {[
-                                    { key: "all",      label: "All"         },
-                                    { key: "open",     label: "Open"        },
-                                    { key: "progress", label: "In Progress" },
-                                    { key: "resolved", label: "Resolved"    },
-                                    { key: "closed",   label: "Closed"      },
-                                ].map(f => (
+                                {statusFilters.map(f => (
                                     <button
                                         key={f.key}
                                         className={`tl-pill ${activeFilter === f.key ? "tl-pill-active" : ""}`}
-                                        onClick={() => setActiveFilter(f.key)}
+                                        onClick={() => handleFilter(f.key)}
                                     >
                                         {f.label}
                                     </button>
@@ -204,7 +270,12 @@ function Tickets() {
                             <div className="tl-toolbar-right">
                                 <div className="tl-search-wrap">
                                     <FiSearch size={14} className="tl-search-icon" />
-                                    <input className="tl-search" placeholder="Search tickets..." />
+                                    <input
+                                        className="tl-search"
+                                        placeholder="Search tickets..."
+                                        value={search}
+                                        onChange={handleSearch}
+                                    />
                                 </div>
                                 <div className="tl-view-toggle">
                                     <button
@@ -235,7 +306,6 @@ function Tickets() {
                                                 <th>TICKET ID</th>
                                                 <th>SUBJECT</th>
                                                 <th>REQUESTER</th>
-                                                <th>CATEGORY</th>
                                                 <th>PRIORITY</th>
                                                 <th>STATUS</th>
                                                 <th>ASSIGNED TO</th>
@@ -244,19 +314,24 @@ function Tickets() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {filteredTickets.map((tk) => {
-                                                const p = priorityConfig[tk.priority];
-                                                const s = statusConfig[tk.status];
+                                            {tickets.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={8} style={{ textAlign: "center", color: "#94a3b8", padding: "2rem" }}>
+                                                        No tickets found
+                                                    </td>
+                                                </tr>
+                                            ) : tickets.map((tk) => {
+                                                const p = priorityConfig[tk.priority] ?? priorityConfig.medium;
+                                                const s = statusConfig[tk.status]    ?? statusConfig.open;
                                                 return (
                                                     <tr
                                                         key={tk.id}
                                                         className="tl-row-clickable"
                                                         onClick={() => navigate(`/tickets/${tk.id}`)}
                                                     >
-                                                        <td className="tl-col-id">{tk.id}</td>
-                                                        <td className="tl-col-subject">{tk.subject}</td>
-                                                        <td className="tl-col-text">{tk.requester}</td>
-                                                        <td className="tl-col-text">{tk.category}</td>
+                                                        <td className="tl-col-id">{tk.ticket_number}</td>
+                                                        <td className="tl-col-subject">{tk.title}</td>
+                                                        <td className="tl-col-text">{tk.created_by_name ?? "—"}</td>
                                                         <td>
                                                             <span className="tl-priority-badge" style={{ background: p.bg, color: p.color }}>
                                                                 <span className="tl-priority-dot" style={{ background: p.dot }} />
@@ -268,13 +343,10 @@ function Tickets() {
                                                                 {s.label}
                                                             </span>
                                                         </td>
-                                                        <td className="tl-col-text">{tk.assigned}</td>
-                                                        <td className="tl-col-date">{tk.date}</td>
+                                                        <td className="tl-col-text">{tk.assigned_to_name ?? "Unassigned"}</td>
+                                                        <td className="tl-col-date">{fmtDate(tk.created_at)}</td>
                                                         <td>
-                                                            <button
-                                                                className="tl-more-btn"
-                                                                onClick={(e) => e.stopPropagation()}
-                                                            >
+                                                            <button className="tl-more-btn" onClick={(e) => e.stopPropagation()}>
                                                                 <FiMoreVertical size={15} />
                                                             </button>
                                                         </td>
@@ -286,15 +358,27 @@ function Tickets() {
                                 </div>
 
                                 <div className="tl-pagination">
-                                    <p className="tl-pag-info">Showing 1–10 of 248 tickets</p>
+                                    <p className="tl-pag-info">
+                                        {totalCount === 0
+                                            ? "No tickets"
+                                            : `Showing ${start}–${end} of ${totalCount} tickets`}
+                                    </p>
                                     <div className="tl-pag-controls">
-                                        <button className="tl-pag-btn"><FiArrowLeft size={13} /></button>
-                                        <button className="tl-pag-btn tl-pag-active">1</button>
-                                        <button className="tl-pag-btn">2</button>
-                                        <button className="tl-pag-btn">3</button>
-                                        <button className="tl-pag-btn">...</button>
-                                        <button className="tl-pag-btn">25</button>
-                                        <button className="tl-pag-btn"><FiArrowRight size={13} /></button>
+                                        <button className="tl-pag-btn" onClick={() => handlePage(page - 1)} disabled={page === 1}>
+                                            <FiArrowLeft size={13} />
+                                        </button>
+                                        {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(pg => (
+                                            <button
+                                                key={pg}
+                                                className={`tl-pag-btn${page === pg ? " tl-pag-active" : ""}`}
+                                                onClick={() => handlePage(pg)}
+                                            >
+                                                {pg}
+                                            </button>
+                                        ))}
+                                        <button className="tl-pag-btn" onClick={() => handlePage(page + 1)} disabled={page === totalPages}>
+                                            <FiArrowRight size={13} />
+                                        </button>
                                     </div>
                                 </div>
                             </>
@@ -304,7 +388,8 @@ function Tickets() {
                         {view === "kanban" && (
                             <div className="kb-board">
                                 {kanbanColumns.map(col => {
-                                    const colTickets = tickets.filter(t => t.status === col.key);
+                                    const colTickets = kanbanTickets.filter(t => t.status === col.key);
+                                    const colCount   = stats?.[col.key === "in_progress" ? "in_progress" : col.key] ?? colTickets.length;
                                     return (
                                         <div key={col.key} className="kb-column">
                                             <div className="kb-col-header" style={{ borderTopColor: col.color }}>
@@ -313,11 +398,15 @@ function Tickets() {
                                                     <span className="kb-col-label">{col.label}</span>
                                                 </div>
                                                 <span className="kb-col-count" style={{ background: col.headerBg, color: col.color }}>
-                                                    {col.count}
+                                                    {colCount}
                                                 </span>
                                             </div>
                                             <div className="kb-col-body">
-                                                {colTickets.map(tk => (
+                                                {colTickets.length === 0 ? (
+                                                    <p style={{ color: "#94a3b8", fontSize: "0.8rem", textAlign: "center", padding: "1rem 0" }}>
+                                                        No tickets
+                                                    </p>
+                                                ) : colTickets.map(tk => (
                                                     <KanbanCard
                                                         key={tk.id}
                                                         ticket={tk}
@@ -360,7 +449,9 @@ function Tickets() {
                             <FiBarChart2 size={15} className="tl-sidebar-icon" />
                         </div>
                         <div className="tl-dist-list">
-                            {priorityDist.map((d, i) => (
+                            {priorityDist.length === 0 ? (
+                                <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>No data yet</p>
+                            ) : priorityDist.map((d, i) => (
                                 <div key={i} className="tl-dist-item">
                                     <div className="tl-dist-row">
                                         <span className="tl-dist-label">{d.label}</span>
@@ -374,7 +465,7 @@ function Tickets() {
                         </div>
                     </div>
 
-                    {/* SLA Status */}
+                    {/* SLA Status (static — no backend data yet) */}
                     <div className="tl-card">
                         <div className="tl-sidebar-title-row">
                             <p className="tl-sidebar-title">SLA STATUS</p>
