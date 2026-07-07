@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import api from "../../services/api";
 import "./Users.css";
 import {
     FiUsers,
@@ -19,192 +20,48 @@ import {
     FiHardDrive,
     FiChevronLeft,
     FiChevronRight,
+    FiEye,
+    FiEyeOff,
 } from "react-icons/fi";
 
-// ─── Static data ──────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-const userStats = [
-    {
-        Icon: FiUsers,
-        label: "TOTAL USERS",
-        value: "1,284",
-        color: "#2563eb",
-        bg: "#eff6ff",
-        trend: { dir: "up", pct: 4, text: "from last month" },
-    },
-    {
-        Icon: FiUserCheck,
-        label: "ACTIVE USERS",
-        value: "1,152",
-        color: "#16a34a",
-        bg: "#f0fdf4",
-        trend: { dir: "up", pct: 12, text: "from last month" },
-    },
-    {
-        Icon: FiHeadphones,
-        label: "SUPPORT AGENTS",
-        value: "24",
-        color: "#ea580c",
-        bg: "#fff7ed",
-        trend: { dir: "neutral", pct: 0, text: "no change" },
-    },
-    {
-        Icon: FiShield,
-        label: "ADMINISTRATORS",
-        value: "8",
-        color: "#7c3aed",
-        bg: "#faf5ff",
-        trend: { dir: "down", pct: 1, text: "from last month" },
-    },
-];
+const C = 2 * Math.PI * 50;
 
 const TABS = [
-    { key: "all",   label: "All Users"      },
-    { key: "emp",   label: "Employees"      },
-    { key: "agent", label: "Support Agents" },
-    { key: "admin", label: "Admins"         },
+    { key: "all",   label: "All Users",      role: ""         },
+    { key: "emp",   label: "Employees",      role: "employee" },
+    { key: "agent", label: "Support Agents", role: "agent"    },
+    { key: "admin", label: "Admins",         role: "admin"    },
 ];
 
-const users = [
-    {
-        id: 1,
-        name: "Aarav Sharma",
-        email: "aarav.s@tickdesk.com",
-        empId: "TD-1092",
-        department: "IT",
-        role: "Employee",
-        status: "Active",
-        location: "Mumbai, IN",
-        reportsTo: "Vikram Joshi",
-        initials: "AS",
-        avatarColor: "#2563eb",
-        assets: [
-            { type: "laptop", name: 'MacBook Pro 14"',  serial: "MBP-2024-0112" },
-            { type: "phone",  name: "iPhone 15 Pro",     serial: "IPH-2024-0334" },
-        ],
-        activity: [
-            { text: "Logged in from Mumbai office",     time: "2 hours ago"  },
-            { text: "Submitted ticket TK-1092",         time: "Yesterday"    },
-            { text: 'Asset MacBook Pro 14" assigned',   time: "Mar 12, 2024" },
-        ],
-    },
-    {
-        id: 2,
-        name: "Neha Gupta",
-        email: "neha.g@tickdesk.com",
-        empId: "TD-0842",
-        department: "Finance",
-        role: "Admin",
-        status: "Active",
-        location: "Delhi, IN",
-        reportsTo: "Sunita Rao",
-        initials: "NG",
-        avatarColor: "#7c3aed",
-        assets: [
-            { type: "laptop", name: "MacBook Air M2",    serial: "MBA-2023-0578" },
-            { type: "phone",  name: 'iPad Pro 12.9"',    serial: "IPD-2023-0892" },
-        ],
-        activity: [
-            { text: "Updated permissions for 3 accounts", time: "1 hour ago"  },
-            { text: "Exported payroll report Q3",          time: "2 days ago"  },
-            { text: "Admin role assigned by Super Admin",  time: "Jan 5, 2024" },
-        ],
-    },
-    {
-        id: 3,
-        name: "Rohit Mehta",
-        email: "rohit.m@tickdesk.com",
-        empId: "TD-1120",
-        department: "HR",
-        role: "Support Agent",
-        status: "Busy",
-        location: "Pune, IN",
-        reportsTo: "Anjali Desai",
-        initials: "RM",
-        avatarColor: "#16a34a",
-        assets: [
-            { type: "laptop", name: "Dell Latitude 5540", serial: "DEL-2024-0219" },
-        ],
-        activity: [
-            { text: "Handling 3 active support tickets",       time: "Just now"    },
-            { text: "Resolved ticket TK-1044 (Printer issue)", time: "3 hours ago" },
-            { text: "Completed onboarding for 2 new hires",    time: "Last week"   },
-        ],
-    },
-    {
-        id: 4,
-        name: "Priya Nair",
-        email: "priya.n@tickdesk.com",
-        empId: "TD-0955",
-        department: "Marketing",
-        role: "Employee",
-        status: "Inactive",
-        location: "Bengaluru, IN",
-        reportsTo: "Rahul Verma",
-        initials: "PN",
-        avatarColor: "#d97706",
-        assets: [
-            { type: "laptop", name: "MacBook Air M1", serial: "MBA-2022-0401" },
-        ],
-        activity: [
-            { text: "Account deactivated by Admin",    time: "2 days ago"   },
-            { text: "Last login from Bengaluru office", time: "Oct 20, 2023" },
-            { text: "Submitted offboarding request",   time: "Oct 18, 2023" },
-        ],
-    },
-    {
-        id: 5,
-        name: "Samantha Reed",
-        email: "samantha.r@tickdesk.com",
-        empId: "TD-0731",
-        department: "IT",
-        role: "Support Agent",
-        status: "Active",
-        location: "Mumbai, IN",
-        reportsTo: "Vikram Joshi",
-        initials: "SR",
-        avatarColor: "#0891b2",
-        assets: [
-            { type: "laptop", name: 'MacBook Pro 16"',     serial: "MBP-2023-0892" },
-            { type: "laptop", name: 'Dell UltraSharp 27"', serial: "DEL-2023-1102" },
-        ],
-        activity: [
-            { text: "Resolved 5 tickets this week",              time: "Today"       },
-            { text: "Escalated TK-1043 to Level 2 support",      time: "Yesterday"   },
-            { text: "Completed IT Security certification",        time: "Mar 1, 2024" },
-        ],
-    },
-    {
-        id: 6,
-        name: "Karan Shah",
-        email: "karan.s@tickdesk.com",
-        empId: "TD-1205",
-        department: "Operations",
-        role: "Employee",
-        status: "Active",
-        location: "Ahmedabad, IN",
-        reportsTo: "Manish Patel",
-        initials: "KS",
-        avatarColor: "#dc2626",
-        assets: [
-            { type: "laptop", name: "ThinkPad X1 Carbon", serial: "LNV-2024-0667" },
-            { type: "phone",  name: "iPhone 14",          serial: "IPH-2023-1234" },
-        ],
-        activity: [
-            { text: "Checked in from Ahmedabad HQ", time: "1 hour ago"   },
-            { text: "Asset iPhone 14 assigned",      time: "Feb 10, 2024" },
-            { text: "Joined Operations team",        time: "Jan 15, 2024" },
-        ],
-    },
+const STAT_META = [
+    { Icon: FiUsers,      label: "TOTAL USERS",    key: "total_users",   color: "#2563eb", bg: "#eff6ff" },
+    { Icon: FiUserCheck,  label: "ACTIVE USERS",   key: "active_users",  color: "#16a34a", bg: "#f0fdf4" },
+    { Icon: FiHeadphones, label: "SUPPORT AGENTS", key: "support_agents",color: "#ea580c", bg: "#fff7ed" },
+    { Icon: FiShield,     label: "ADMINISTRATORS", key: "administrators",color: "#7c3aed", bg: "#faf5ff" },
 ];
 
-const deptDistribution = [
-    { label: "IT",         pct: 32, color: "#2563eb" },
-    { label: "Finance",    pct: 18, color: "#7c3aed" },
-    { label: "HR",         pct: 12, color: "#16a34a" },
-    { label: "Marketing",  pct: 22, color: "#f59e0b" },
-    { label: "Operations", pct: 16, color: "#ea580c" },
-];
+const roleConfig = {
+    employee: { bg: "#eff6ff", color: "#2563eb", label: "Employee"      },
+    agent:    { bg: "#fff7ed", color: "#ea580c", label: "Support Agent" },
+    admin:    { bg: "#fef2f2", color: "#dc2626", label: "Admin"         },
+};
+
+const statusConfig = {
+    active:   { dot: "#16a34a", label: "Active"   },
+    busy:     { dot: "#ea580c", label: "Busy"     },
+    inactive: { dot: "#9ca3af", label: "Inactive" },
+};
+
+const ASSET_ICON_MAP = {
+    laptop:  FiHardDrive,
+    desktop: FiHardDrive,
+    server:  FiHardDrive,
+    monitor: FiMonitor,
+};
+
+const DEPT_COLORS = ["#2563eb", "#7c3aed", "#16a34a", "#f59e0b", "#ea580c", "#0891b2"];
 
 const quickActions = [
     { Icon: FiUserPlus, label: "Invite User",  color: "#2563eb", bg: "#eff6ff" },
@@ -220,65 +77,51 @@ const onlineAvatars = [
     { initials: "PN", color: "#d97706" },
 ];
 
-// ─── Donut chart constants ────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const C = 2 * Math.PI * 50; // ≈ 314.159
+function getPageButtons(current, total) {
+    const MAX = 5;
+    if (total <= MAX) return Array.from({ length: total }, (_, i) => i + 1);
+    const half = Math.floor(MAX / 2);
+    let start = Math.max(1, current - half);
+    let end   = start + MAX - 1;
+    if (end > total) { end = total; start = Math.max(1, end - MAX + 1); }
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+}
 
-const donutSegments = [
-    { pct: 68, color: "#2563eb", label: "Employees", offset: 0          },
-    { pct: 22, color: "#7c3aed", label: "Agents",    offset: 0.68 * C   },
-    { pct: 10, color: "#ea580c", label: "Admins",    offset: 0.90 * C   },
-];
-
-// ─── Role / Status config ─────────────────────────────────────────────────────
-
-const roleConfig = {
-    "Employee":      { bg: "#eff6ff", color: "#2563eb" },
-    "Admin":         { bg: "#fef2f2", color: "#dc2626" },
-    "Support Agent": { bg: "#fff7ed", color: "#ea580c" },
-};
-
-const statusConfig = {
-    "Active":   { dot: "#16a34a" },
-    "Busy":     { dot: "#ea580c" },
-    "Inactive": { dot: "#9ca3af" },
-};
-
-// ─── Small helper components ─────────────────────────────────────────────────
+// ─── Small helper components ──────────────────────────────────────────────────
 
 function RoleBadge({ role }) {
-    const cfg = roleConfig[role] || { bg: "#f3f4f6", color: "#374151" };
+    const cfg = roleConfig[role] || { bg: "#f3f4f6", color: "#374151", label: role };
     return (
         <span className="usr-role-badge" style={{ background: cfg.bg, color: cfg.color }}>
-            {role}
+            {cfg.label}
         </span>
     );
 }
 
 function StatusDot({ status }) {
-    const cfg = statusConfig[status] || { dot: "#9ca3af" };
+    const cfg = statusConfig[status] || { dot: "#9ca3af", label: status };
     return (
         <span className="usr-status-cell">
             <span className="usr-status-dot" style={{ background: cfg.dot }} />
-            {status}
+            {cfg.label}
         </span>
     );
 }
 
 // ─── User Detail Drawer ───────────────────────────────────────────────────────
 
-function UserDrawer({ user, onClose }) {
+function UserDrawer({ user, detail, loading, onClose }) {
     const isOpen = !!user;
+    const assets = detail?.assigned_assets || [];
 
     return (
         <>
-            {/* Overlay */}
             <div
                 className={`udr-overlay${isOpen ? " udr-overlay-show" : ""}`}
                 onClick={onClose}
             />
-
-            {/* Panel */}
             <div className={`udr-panel${isOpen ? " udr-open" : ""}`}>
                 {user && (
                     <>
@@ -298,7 +141,7 @@ function UserDrawer({ user, onClose }) {
                                 <div
                                     className="udr-avatar-lg"
                                     style={{
-                                        background: `linear-gradient(135deg, ${user.avatarColor} 0%, ${user.avatarColor}99 100%)`,
+                                        background: `linear-gradient(135deg, ${user.avatar_color} 0%, ${user.avatar_color}99 100%)`,
                                     }}
                                 >
                                     {user.initials}
@@ -310,9 +153,9 @@ function UserDrawer({ user, onClose }) {
                                     <span className="udr-status-badge">
                                         <span
                                             className="usr-status-dot"
-                                            style={{ background: (statusConfig[user.status] || {}).dot || "#9ca3af" }}
+                                            style={{ background: statusConfig[user.status]?.dot || "#9ca3af" }}
                                         />
-                                        {user.status}
+                                        {statusConfig[user.status]?.label || user.status}
                                     </span>
                                 </div>
                             </div>
@@ -323,19 +166,19 @@ function UserDrawer({ user, onClose }) {
                                 <div className="udr-info-grid">
                                     <div className="udr-info-item">
                                         <span className="udr-info-key">Department</span>
-                                        <span className="udr-info-val">{user.department}</span>
+                                        <span className="udr-info-val">{user.department || "—"}</span>
                                     </div>
                                     <div className="udr-info-item">
                                         <span className="udr-info-key">Employee ID</span>
-                                        <span className="udr-info-val">{user.empId}</span>
+                                        <span className="udr-info-val">{user.emp_id}</span>
                                     </div>
                                     <div className="udr-info-item">
                                         <span className="udr-info-key">Reports To</span>
-                                        <span className="udr-info-val">{user.reportsTo}</span>
+                                        <span className="udr-info-val">{user.reports_to || "—"}</span>
                                     </div>
                                     <div className="udr-info-item">
                                         <span className="udr-info-key">Location</span>
-                                        <span className="udr-info-val">{user.location}</span>
+                                        <span className="udr-info-val">{user.location || "—"}</span>
                                     </div>
                                 </div>
                             </div>
@@ -343,49 +186,51 @@ function UserDrawer({ user, onClose }) {
                             {/* Assigned Assets */}
                             <div className="udr-section">
                                 <p className="udr-section-title">
-                                    ASSIGNED ASSETS ({user.assets.length})
+                                    ASSIGNED ASSETS ({loading ? "…" : assets.length})
                                 </p>
-                                <div className="udr-assets-list">
-                                    {user.assets.map((asset, i) => (
-                                        <div key={i} className="udr-asset-row">
-                                            <div className="udr-asset-icon">
-                                                {asset.type === "laptop"
-                                                    ? <FiHardDrive size={14} />
-                                                    : <FiSmartphone size={14} />}
-                                            </div>
-                                            <div className="udr-asset-info">
-                                                <p className="udr-asset-name">{asset.name}</p>
-                                                <p className="udr-asset-serial">{asset.serial}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                {loading ? (
+                                    <p style={{ fontSize: "13px", color: "#9ca3af" }}>Loading…</p>
+                                ) : assets.length === 0 ? (
+                                    <p style={{ fontSize: "13px", color: "#9ca3af" }}>No assets assigned</p>
+                                ) : (
+                                    <div className="udr-assets-list">
+                                        {assets.map((asset, i) => {
+                                            const Icon = ASSET_ICON_MAP[asset.category] || FiSmartphone;
+                                            return (
+                                                <div key={i} className="udr-asset-row">
+                                                    <div className="udr-asset-icon">
+                                                        <Icon size={14} />
+                                                    </div>
+                                                    <div className="udr-asset-info">
+                                                        <p className="udr-asset-name">{asset.asset_name}</p>
+                                                        <p className="udr-asset-serial">{asset.asset_tag}</p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Recent Activity */}
                             <div className="udr-section">
                                 <p className="udr-section-title">RECENT ACTIVITY</p>
                                 <div className="udr-activity-list">
-                                    {user.activity.map((act, i) => (
-                                        <div key={i} className="udr-activity-item">
-                                            <div className="udr-act-dot-col">
-                                                <span className="udr-act-dot" />
-                                                {i < user.activity.length - 1 && (
-                                                    <span className="udr-act-line" />
-                                                )}
-                                            </div>
-                                            <div className="udr-act-body">
-                                                <p className="udr-act-text">{act.text}</p>
-                                                <p className="udr-act-time">{act.time}</p>
-                                            </div>
+                                    <div className="udr-activity-item">
+                                        <div className="udr-act-dot-col">
+                                            <span className="udr-act-dot" />
                                         </div>
-                                    ))}
+                                        <div className="udr-act-body">
+                                            <p className="udr-act-text">Activity log not available</p>
+                                            <p className="udr-act-time">—</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
                         </div>
 
-                        {/* Footer actions */}
+                        {/* Footer */}
                         <div className="udr-footer">
                             <button className="udr-btn-edit">Edit Profile</button>
                             <button className="udr-btn-deactivate">Deactivate</button>
@@ -397,14 +242,248 @@ function UserDrawer({ user, onClose }) {
     );
 }
 
+// ─── New User Modal ───────────────────────────────────────────────────────────
+
+const EMPTY_USER = {
+    first_name: "", last_name: "", email: "", password: "",
+    role: "employee", status: "active", location: "", department: "",
+};
+
+function NewUserModal({ onClose, onCreated }) {
+    const [form,       setForm]       = useState(EMPTY_USER);
+    const [depts,      setDepts]      = useState([]);
+    const [submitting, setSubmitting] = useState(false);
+    const [errors,     setErrors]     = useState({});
+    const [showPwd,    setShowPwd]    = useState(false);
+
+    useEffect(() => {
+        api.get("accounts/departments/?page_size=200")
+            .then(r => setDepts(r.data.results ?? []))
+            .catch(() => {});
+    }, []);
+
+    const handleChange = (e) => {
+        setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+        setErrors(ev => ({ ...ev, [e.target.name]: undefined }));
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        const errs = {};
+        if (!form.first_name.trim()) errs.first_name = "Required";
+        if (!form.email.trim())      errs.email      = "Required";
+        if (!form.password.trim())   errs.password   = "Required";
+        if (Object.keys(errs).length) { setErrors(errs); return; }
+
+        setSubmitting(true);
+        try {
+            const payload = {
+                first_name: form.first_name.trim(),
+                last_name:  form.last_name.trim(),
+                email:      form.email.trim(),
+                password:   form.password,
+                role:       form.role,
+                status:     form.status,
+                location:   form.location.trim(),
+            };
+            if (form.department) payload.department = Number(form.department);
+            await api.post("accounts/users/", payload);
+            onCreated();
+            onClose();
+        } catch (err) {
+            const data = err.response?.data;
+            if (data && typeof data === "object") setErrors(data);
+            else setErrors({ non_field: "Something went wrong. Please try again." });
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const field = (name, label, required, placeholder, type = "text") => (
+        <div className="num-field">
+            <label className="num-label">
+                {label}{required && <span className="num-required">*</span>}
+            </label>
+            <div className={`num-input-wrap${name === "password" ? " num-pwd-wrap" : ""}`}>
+                <input
+                    className={`num-input${errors[name] ? " num-input-err" : ""}`}
+                    type={name === "password" ? (showPwd ? "text" : "password") : type}
+                    name={name}
+                    placeholder={placeholder}
+                    value={form[name]}
+                    onChange={handleChange}
+                    autoComplete={name === "password" ? "new-password" : undefined}
+                />
+                {name === "password" && (
+                    <button type="button" className="num-pwd-toggle" onClick={() => setShowPwd(v => !v)} title={showPwd ? "Hide password" : "Show password"}>
+                        {showPwd ? <FiEyeOff size={15} /> : <FiEye size={15} />}
+                    </button>
+                )}
+            </div>
+            {errors[name] && <span className="num-field-err">{errors[name]}</span>}
+        </div>
+    );
+
+    return (
+        <div className="num-overlay" onClick={onClose}>
+            <div className="num-card" onClick={e => e.stopPropagation()}>
+
+                <div className="num-header">
+                    <h2 className="num-title">New User</h2>
+                    <button className="num-close" onClick={onClose}><FiX size={16} /></button>
+                </div>
+
+                <form onSubmit={handleSubmit}>
+                    <div className="num-body">
+                        {errors.non_field && <p className="num-err-banner">{errors.non_field}</p>}
+
+                        <div className="num-row-2">
+                            {field("first_name", "First Name", true, "John")}
+                            {field("last_name",  "Last Name",  false, "Doe")}
+                        </div>
+
+                        {field("email", "Email Address", true, "john.doe@company.com", "email")}
+                        {field("password", "Password", true, "Min. 8 characters")}
+
+                        <div className="num-row-2">
+                            <div className="num-field">
+                                <label className="num-label">Role<span className="num-required">*</span></label>
+                                <select className="num-select" name="role" value={form.role} onChange={handleChange}>
+                                    <option value="employee">Employee</option>
+                                    <option value="agent">Support Agent</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                            <div className="num-field">
+                                <label className="num-label">Status</label>
+                                <select className="num-select" name="status" value={form.status} onChange={handleChange}>
+                                    <option value="active">Active</option>
+                                    <option value="busy">Busy</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="num-row-2">
+                            <div className="num-field">
+                                <label className="num-label">Department</label>
+                                <select className="num-select" name="department" value={form.department} onChange={handleChange}>
+                                    <option value="">No Department</option>
+                                    {depts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                </select>
+                            </div>
+                            {field("location", "Location", false, "e.g. Mumbai Office")}
+                        </div>
+                    </div>
+
+                    <div className="num-footer">
+                        <button type="button" className="num-btn-cancel" onClick={onClose}>Cancel</button>
+                        <button type="submit" className="num-btn-submit" disabled={submitting}>
+                            <FiPlus size={14} />
+                            {submitting ? "Creating…" : "Create User"}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 // ─── Users Page ───────────────────────────────────────────────────────────────
 
 function Users() {
-    const [activeTab, setActiveTab]       = useState("all");
+    const [activeTab,    setActiveTab]    = useState("all");
+    const [search,       setSearch]       = useState("");
+    const [page,         setPage]         = useState(1);
+
+    const [stats,        setStats]        = useState(null);
+    const [userList,     setUserList]     = useState([]);
+    const [totalCount,   setTotalCount]   = useState(0);
+    const [pageSize,     setPageSize]     = useState(10);
+    const [deptDist,     setDeptDist]     = useState([]);
+    const [roleBreakdown,setRoleBreakdown]= useState([]);
+
     const [selectedUser, setSelectedUser] = useState(null);
+    const [drawerDetail, setDrawerDetail] = useState(null);
+    const [loadingDrawer,setLoadingDrawer]= useState(false);
+    const [showModal,    setShowModal]    = useState(false);
+
+    // Load stats and sidebar data once
+    useEffect(() => {
+        api.get("accounts/users/stats/").then(r => setStats(r.data)).catch(() => {});
+        api.get("accounts/users/dept-distribution/").then(r => setDeptDist(r.data)).catch(() => {});
+        api.get("accounts/users/role-breakdown/").then(r => setRoleBreakdown(r.data)).catch(() => {});
+    }, []);
+
+    // Reset to page 1 when tab or search changes
+    useEffect(() => { setPage(1); }, [activeTab, search]);
+
+    // Load paginated user list
+    useEffect(() => {
+        const role   = TABS.find(t => t.key === activeTab)?.role || "";
+        const params = { page };
+        if (role)   params.role   = role;
+        if (search) params.search = search;
+        api.get("accounts/users/", { params }).then(r => {
+            setUserList(r.data.results);
+            setTotalCount(r.data.count);
+            setPageSize(r.data.page_size);
+        }).catch(() => {});
+    }, [activeTab, search, page]);
+
+    function refreshAll() {
+        api.get("accounts/users/stats/").then(r => setStats(r.data)).catch(() => {});
+        api.get("accounts/users/dept-distribution/").then(r => setDeptDist(r.data)).catch(() => {});
+        api.get("accounts/users/role-breakdown/").then(r => setRoleBreakdown(r.data)).catch(() => {});
+        const role   = TABS.find(t => t.key === activeTab)?.role || "";
+        const params = { page: 1 };
+        if (role)   params.role   = role;
+        if (search) params.search = search;
+        api.get("accounts/users/", { params }).then(r => {
+            setUserList(r.data.results);
+            setTotalCount(r.data.count);
+            setPageSize(r.data.page_size);
+            setPage(1);
+        }).catch(() => {});
+    }
+
+    function openDrawer(user) {
+        setSelectedUser(user);
+        setDrawerDetail(null);
+        setLoadingDrawer(true);
+        api.get(`accounts/users/${user.id}/`)
+            .then(r  => setDrawerDetail(r.data))
+            .catch(() => {})
+            .finally(() => setLoadingDrawer(false));
+    }
+
+    function closeDrawer() {
+        setSelectedUser(null);
+        setDrawerDetail(null);
+    }
+
+    // Build donut segments from live role breakdown
+    let cumPct = 0;
+    const donutSegments = roleBreakdown.map(rb => {
+        const seg = { ...rb, offset: (cumPct / 100) * C };
+        cumPct += rb.pct;
+        return seg;
+    });
+
+    const totalPages = Math.ceil(totalCount / pageSize) || 1;
+    const pageStart  = (page - 1) * pageSize + 1;
+    const pageEnd    = Math.min(page * pageSize, totalCount);
+    const pageButtons = getPageButtons(page, totalPages);
 
     return (
         <div className="usr-page">
+
+            {showModal && (
+                <NewUserModal
+                    onClose={() => setShowModal(false)}
+                    onCreated={refreshAll}
+                />
+            )}
 
             {/* ── Header ── */}
             <div className="usr-header">
@@ -417,29 +496,27 @@ function Users() {
                 <div className="usr-header-btns">
                     <button className="usr-btn-outline"><FiFilter size={13} /> Filter</button>
                     <button className="usr-btn-outline"><FiDownload size={13} /> Export</button>
-                    <button className="usr-btn-primary"><FiPlus size={13} /> New User</button>
+                    <button className="usr-btn-primary" onClick={() => setShowModal(true)}>
+                        <FiPlus size={13} /> New User
+                    </button>
                 </div>
             </div>
 
             {/* ── Stat Cards ── */}
             <section className="usr-stats">
-                {userStats.map(({ Icon, label, value, color, bg, trend }) => (
-                    <div key={label} className="usr-stat-card">
+                {STAT_META.map(({ Icon, label, key, color, bg }) => (
+                    <div key={key} className="usr-stat-card">
                         <div className="usr-stat-icon" style={{ background: bg, color }}>
                             <Icon size={20} />
                         </div>
                         <div className="usr-stat-text">
                             <p className="usr-stat-label">{label}</p>
-                            <p className="usr-stat-value">{value}</p>
-                            <div className={`usr-trend usr-trend-${trend.dir}`}>
-                                <span className="usr-trend-arrow">
-                                    {trend.dir === "up" ? "↑" : trend.dir === "down" ? "↓" : "→"}
-                                </span>
-                                <span className="usr-trend-pct">
-                                    {trend.dir === "neutral"
-                                        ? "No change"
-                                        : `${trend.dir === "down" ? "-" : "+"}${trend.pct}% ${trend.text}`}
-                                </span>
+                            <p className="usr-stat-value">
+                                {stats ? stats[key].toLocaleString() : "—"}
+                            </p>
+                            <div className="usr-trend usr-trend-neutral">
+                                <span className="usr-trend-arrow">→</span>
+                                <span className="usr-trend-pct">Live data</span>
                             </div>
                         </div>
                     </div>
@@ -468,7 +545,12 @@ function Users() {
                             </div>
                             <div className="usr-search-wrap">
                                 <FiSearch size={14} className="usr-search-icon" />
-                                <input className="usr-search" placeholder="Search users..." />
+                                <input
+                                    className="usr-search"
+                                    placeholder="Search users..."
+                                    value={search}
+                                    onChange={e => setSearch(e.target.value)}
+                                />
                             </div>
                         </div>
 
@@ -486,17 +568,17 @@ function Users() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {users.map(u => (
+                                    {userList.map(u => (
                                         <tr
                                             key={u.id}
                                             className="usr-row"
-                                            onClick={() => setSelectedUser(u)}
+                                            onClick={() => openDrawer(u)}
                                         >
                                             <td>
                                                 <div className="usr-name-cell">
                                                     <div
                                                         className="usr-avatar"
-                                                        style={{ background: u.avatarColor }}
+                                                        style={{ background: u.avatar_color }}
                                                     >
                                                         {u.initials}
                                                     </div>
@@ -506,8 +588,8 @@ function Users() {
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="usr-col-id">{u.empId}</td>
-                                            <td className="usr-col-dept">{u.department}</td>
+                                            <td className="usr-col-id">{u.emp_id}</td>
+                                            <td className="usr-col-dept">{u.department || "—"}</td>
                                             <td><RoleBadge role={u.role} /></td>
                                             <td><StatusDot status={u.status} /></td>
                                             <td>
@@ -520,21 +602,49 @@ function Users() {
                                             </td>
                                         </tr>
                                     ))}
+                                    {userList.length === 0 && (
+                                        <tr>
+                                            <td
+                                                colSpan={6}
+                                                style={{ textAlign: "center", padding: "32px", color: "#9ca3af" }}
+                                            >
+                                                No users found
+                                            </td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>
 
                         {/* Pagination */}
                         <div className="usr-pagination">
-                            <span className="usr-pag-info">Showing 1-6 of 1,284 users</span>
+                            <span className="usr-pag-info">
+                                {totalCount > 0
+                                    ? `Showing ${pageStart}–${pageEnd} of ${totalCount.toLocaleString()} users`
+                                    : "No users"}
+                            </span>
                             <div className="usr-pag-controls">
-                                <button className="usr-pag-btn">
+                                <button
+                                    className="usr-pag-btn"
+                                    disabled={page <= 1}
+                                    onClick={() => setPage(p => p - 1)}
+                                >
                                     <FiChevronLeft size={13} />
                                 </button>
-                                <button className="usr-pag-btn usr-pag-active">1</button>
-                                <button className="usr-pag-btn">2</button>
-                                <button className="usr-pag-btn">3</button>
-                                <button className="usr-pag-btn">
+                                {pageButtons.map(pg => (
+                                    <button
+                                        key={pg}
+                                        className={`usr-pag-btn${page === pg ? " usr-pag-active" : ""}`}
+                                        onClick={() => setPage(pg)}
+                                    >
+                                        {pg}
+                                    </button>
+                                ))}
+                                <button
+                                    className="usr-pag-btn"
+                                    disabled={page >= totalPages}
+                                    onClick={() => setPage(p => p + 1)}
+                                >
                                     <FiChevronRight size={13} />
                                 </button>
                             </div>
@@ -565,20 +675,26 @@ function Users() {
                     <div className="usr-card">
                         <p className="usr-sidebar-title">DEPARTMENT DISTRIBUTION</p>
                         <div className="usr-dist-list">
-                            {deptDistribution.map(d => (
-                                <div key={d.label} className="usr-dist-item">
-                                    <div className="usr-dist-row">
-                                        <span className="usr-dist-label">{d.label}</span>
-                                        <span className="usr-dist-pct">{d.pct}%</span>
+                            {deptDist.length === 0
+                                ? <p style={{ fontSize: "13px", color: "#9ca3af" }}>No data</p>
+                                : deptDist.map((d, i) => (
+                                    <div key={d.label} className="usr-dist-item">
+                                        <div className="usr-dist-row">
+                                            <span className="usr-dist-label">{d.label}</span>
+                                            <span className="usr-dist-pct">{d.pct}%</span>
+                                        </div>
+                                        <div className="usr-dist-track">
+                                            <div
+                                                className="usr-dist-fill"
+                                                style={{
+                                                    width: `${d.pct}%`,
+                                                    background: DEPT_COLORS[i % DEPT_COLORS.length],
+                                                }}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="usr-dist-track">
-                                        <div
-                                            className="usr-dist-fill"
-                                            style={{ width: `${d.pct}%`, background: d.color }}
-                                        />
-                                    </div>
-                                </div>
-                            ))}
+                                ))
+                            }
                         </div>
                     </div>
 
@@ -618,20 +734,16 @@ function Users() {
                         <p className="usr-sidebar-title">ROLE BREAKDOWN</p>
                         <div className="usr-donut-wrap">
                             <svg width="140" height="140" viewBox="0 0 140 140">
-                                {/* Background ring */}
                                 <circle
                                     cx="70" cy="70" r="50"
                                     fill="none"
                                     stroke="#f1f5f9"
                                     strokeWidth="20"
                                 />
-                                {/* Colored segments */}
                                 {donutSegments.map((seg, i) => (
                                     <circle
                                         key={i}
-                                        cx="70"
-                                        cy="70"
-                                        r="50"
+                                        cx="70" cy="70" r="50"
                                         fill="none"
                                         stroke={seg.color}
                                         strokeWidth="20"
@@ -641,21 +753,14 @@ function Users() {
                                         transform="rotate(-90 70 70)"
                                     />
                                 ))}
-                                {/* Center labels */}
-                                <text
-                                    x="70"
-                                    y="66"
-                                    textAnchor="middle"
-                                    className="usr-donut-val"
-                                >
-                                    1.2k
+                                <text x="70" y="66" textAnchor="middle" className="usr-donut-val">
+                                    {stats
+                                        ? (stats.total_users > 999
+                                            ? `${(stats.total_users / 1000).toFixed(1)}k`
+                                            : stats.total_users)
+                                        : "—"}
                                 </text>
-                                <text
-                                    x="70"
-                                    y="82"
-                                    textAnchor="middle"
-                                    className="usr-donut-sub"
-                                >
+                                <text x="70" y="82" textAnchor="middle" className="usr-donut-sub">
                                     Users
                                 </text>
                             </svg>
@@ -681,7 +786,9 @@ function Users() {
             {/* ── User Detail Drawer ── */}
             <UserDrawer
                 user={selectedUser}
-                onClose={() => setSelectedUser(null)}
+                detail={drawerDetail}
+                loading={loadingDrawer}
+                onClose={closeDrawer}
             />
 
         </div>

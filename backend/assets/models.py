@@ -52,8 +52,16 @@ class Asset(models.Model):
     updated_at    = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering       = ['-created_at']
+        ordering        = ['-created_at']
         unique_together = [['company', 'asset_tag']]
+
+    def save(self, *args, **kwargs):
+        if not self.asset_tag:
+            import datetime
+            year  = datetime.date.today().year
+            count = Asset.objects.filter(company=self.company).count() + 1
+            self.asset_tag = f"AST-{year}-{count:04d}"
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.asset_tag}: {self.asset_name}"

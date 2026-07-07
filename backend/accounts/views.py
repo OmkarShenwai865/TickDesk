@@ -6,9 +6,23 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    """Extend the default JWT response to include user info."""
+    """Extend the default JWT response to include user info.
+
+    Accepts either username or email in the username field so that users
+    created from the admin UI can log in with the email they registered with.
+    """
 
     def validate(self, attrs):
+        from .models import User as AppUser
+        from rest_framework import serializers
+
+        email = attrs.get('username', '')
+        try:
+            user_obj = AppUser.objects.get(email=email)
+            attrs['username'] = user_obj.username
+        except AppUser.DoesNotExist:
+            raise serializers.ValidationError('No account found with this email address.')
+
         data = super().validate(attrs)
         user = self.user
         data['user'] = {

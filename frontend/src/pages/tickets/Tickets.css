@@ -834,3 +834,321 @@
 
     .ticket-right { grid-template-columns: 1fr; }
 }
+
+/* ===========================
+   Ticket Detail — live data additions
+=========================== */
+
+/* Count badge on card headings */
+.t-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    background: #eff6ff;
+    color: #2563eb;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 99px;
+    margin-left: auto;
+}
+
+/* Attachment action buttons */
+.att-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+.att-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    color: #6b7280;
+    text-decoration: none;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+    flex-shrink: 0;
+}
+.att-action-btn svg { stroke-width: 2.2; }
+.att-preview-btn { color: #2563eb; background: #eff6ff; border-color: #bfdbfe; }
+.att-preview-btn:hover {
+    background: #dbeafe;
+    border-color: #93c5fd;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.18);
+    color: #1d4ed8;
+}
+.att-download-btn { color: #374151; }
+.att-download-btn:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #0f172a;
+    box-shadow: 0 2px 6px rgba(15,23,42,0.1);
+}
+
+/* Ticket Meta widget */
+.tmeta-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.tmeta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.tmeta-key {
+    font-size: 12px;
+    color: #9ca3af;
+    font-weight: 500;
+}
+.tmeta-val {
+    font-size: 12.5px;
+    color: #0f172a;
+    font-weight: 600;
+    text-align: right;
+}
+
+/* ===========================
+   Ticket Detail Modals (Assign / Edit)
+=========================== */
+
+@keyframes numFadeIn  { from { opacity: 0; }                          to { opacity: 1; } }
+@keyframes numSlideUp { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+.tdm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+    animation: numFadeIn 0.18s ease;
+}
+
+.tdm-card {
+    background: #fff;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+    animation: numSlideUp 0.2s ease;
+    overflow: hidden;
+}
+
+.tdm-card-wide { max-width: 560px; }
+
+.tdm-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid #f1f5f9;
+}
+.tdm-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+}
+.tdm-close {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1f5f9;
+    border: none;
+    border-radius: 8px;
+    color: #6b7280;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.tdm-close:hover { background: #e2e8f0; color: #374151; }
+
+.tdm-body {
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-height: 72vh;
+    overflow-y: auto;
+}
+.tdm-row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.tdm-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 22px 18px;
+    border-top: 1px solid #f1f5f9;
+}
+
+/* Shared form primitives (reused from modal pattern) */
+.tdm-body .ndm-field { display: flex; flex-direction: column; gap: 5px; }
+.tdm-body .ndm-label { font-size: 12px; font-weight: 600; color: #374151; letter-spacing: 0.02em; }
+.tdm-body .ndm-required { color: #ef4444; margin-left: 2px; }
+.tdm-body .ndm-input,
+.tdm-body .ndm-select {
+    width: 100%;
+    padding: 9px 13px;
+    font-size: 13.5px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 9px;
+    background: #fff;
+    color: #0f172a;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+.tdm-body .ndm-input:focus,
+.tdm-body .ndm-select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+.tdm-body .ndm-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 34px;
+    cursor: pointer;
+}
+.tdm-body .ndm-input.ndm-textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
+.tdm-body .ndm-err-banner {
+    font-size: 12.5px;
+    color: #ef4444;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 10px 13px;
+}
+.ndm-btn-cancel {
+    padding: 9px 18px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #374151;
+    background: #fff;
+    border: 1.5px solid #d1d5db;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-family: inherit;
+}
+.ndm-btn-cancel:hover:not(:disabled) { background: #f9fafb; }
+.ndm-btn-cancel:disabled { opacity: 0.5; cursor: not-allowed; }
+.ndm-btn-submit {
+    padding: 9px 20px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #fff;
+    background: #2563eb;
+    border: none;
+    border-radius: 9px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.15s, transform 0.12s;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+    font-family: inherit;
+}
+.ndm-btn-submit:hover:not(:disabled) { background: #1d4ed8; transform: translateY(-1px); }
+.ndm-btn-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+/* ── Edit modal attachment dropzone ── */
+.tdm-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 16px 12px;
+    border: 1.5px dashed #cbd5e1;
+    border-radius: 10px;
+    background: #f8fafc;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    text-align: center;
+}
+.tdm-dropzone:hover,
+.tdm-dropzone-active {
+    border-color: #2563eb;
+    background: #eff6ff;
+}
+.tdm-drop-icon { color: #94a3b8; margin-bottom: 2px; }
+.tdm-dropzone-active .tdm-drop-icon { color: #2563eb; }
+.tdm-drop-text {
+    font-size: 13px;
+    color: #374151;
+    font-weight: 500;
+}
+.tdm-drop-link { color: #2563eb; font-weight: 600; }
+.tdm-drop-hint { font-size: 11.5px; color: #9ca3af; }
+
+/* ── Edit modal file list ── */
+.tdm-file-list {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.tdm-file-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 9px;
+    font-size: 13px;
+}
+.tdm-file-item-err {
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+.tdm-file-icon { color: #6b7280; flex-shrink: 0; }
+.tdm-file-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #0f172a;
+    font-weight: 500;
+}
+.tdm-file-size { color: #9ca3af; font-size: 11.5px; white-space: nowrap; }
+.tdm-file-err  { color: #dc2626; font-size: 11.5px; white-space: nowrap; }
+.tdm-file-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: #9ca3af;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.12s, color 0.12s;
+}
+.tdm-file-remove:hover { background: #fee2e2; color: #dc2626; }

@@ -62,3 +62,57 @@ class Ticket(models.Model):
 
     def __str__(self):
         return f"{self.ticket_number}: {self.title}"
+
+
+def attachment_upload_path(instance, filename):
+    return f"ticket_attachments/{instance.ticket.ticket_number}/{filename}"
+
+
+class TicketAttachment(models.Model):
+    ticket       = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='attachments')
+    file         = models.FileField(upload_to=attachment_upload_path)
+    original_name = models.CharField(max_length=255)
+    file_size    = models.PositiveIntegerField(help_text="Size in bytes")
+    uploaded_by  = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, related_name='uploaded_attachments',
+    )
+    uploaded_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['uploaded_at']
+
+    def __str__(self):
+        return f"{self.original_name} → {self.ticket.ticket_number}"
+
+
+class TicketComment(models.Model):
+    ticket     = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='comments')
+    author     = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, related_name='ticket_comments',
+    )
+    text       = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"Comment on {self.ticket.ticket_number} by {self.author}"
+
+
+class TicketActivity(models.Model):
+    ticket     = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='activities')
+    actor      = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, related_name='ticket_activities',
+    )
+    action     = models.CharField(max_length=500)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.ticket.ticket_number}: {self.action}"

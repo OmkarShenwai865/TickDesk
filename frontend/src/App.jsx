@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/auth/Login";
 import Dashboard from "./pages/dashboard/Dashboard";
 import Assets from "./pages/assets/Assets";
+import AssetDetail from "./pages/assets/AssetDetail";
 import Tickets from "./pages/tickets/Tickets";
 import TicketDetail from "./pages/tickets/TicketDetail";
 
@@ -23,8 +24,9 @@ function App() {
     return (
         <BrowserRouter>
             <Routes>
-                {/* Public Route */}
-                <Route path="/" element={<Login />} />
+                {/* Public Routes */}
+                <Route path="/"      element={<Login />} />
+                <Route path="/login" element={<Login />} />
 
                 {/* Protected Routes */}
                 <Route
@@ -36,6 +38,7 @@ function App() {
                 >
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/assets" element={<Assets />} />
+                    <Route path="/assets/:id" element={<AssetDetail />} />
                     <Route path="/tickets" element={<Tickets />} />
                     <Route path="/tickets/:id" element={<TicketDetail />} />
                     <Route path="/users" element={<Users />} />

@@ -1,5 +1,5 @@
 import "./TicketList.css";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 
@@ -21,6 +21,8 @@ import {
     FiTag,
     FiList,
     FiColumns,
+    FiX,
+    FiEye,
 } from "react-icons/fi";
 
 // ─── Config maps (keyed by raw API values) ────────────────────────────────────
@@ -54,11 +56,11 @@ const statusFilters = [
     { key: "closed",      label: "Closed"      },
 ];
 
-const quickActions = [
-    { icon: <FiPlus />,     label: "New Ticket"    },
-    { icon: <FiUserPlus />, label: "Bulk Assign"   },
-    { icon: <FiDownload />, label: "Export Report" },
-    { icon: <FiSettings />, label: "SLA Settings"  },
+const quickActionDefs = [
+    { icon: <FiPlus />,     label: "New Ticket",    key: "new"    },
+    { icon: <FiUserPlus />, label: "Bulk Assign",   key: "bulk"   },
+    { icon: <FiDownload />, label: "Export Report", key: "export" },
+    { icon: <FiSettings />, label: "SLA Settings",  key: "sla"    },
 ];
 
 const slaItems = [
@@ -106,6 +108,507 @@ function KanbanCard({ ticket, onClick }) {
     );
 }
 
+// ─── New Ticket Modal ─────────────────────────────────────────────────────────
+
+const EMPTY_FORM = { title: "", description: "", priority: "medium", department: "", assigned_to: "" };
+
+const ALLOWED_EXTS = new Set([
+    'pdf','png','jpg','jpeg','gif','webp','txt','csv','doc','docx','xls','xlsx','zip',
+    'mp4','mov','avi','webm','mkv',
+]);
+const TOTAL_MAX = 50 * 1024 * 1024; // 50 MB total across all attachments
+
+function formatBytes(bytes) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getFileKind(file) {
+    if (file.type.startsWith("image/"))  return "image";
+    if (file.type === "application/pdf") return "pdf";
+    if (file.type.startsWith("video/"))  return "video";
+    if (file.type.startsWith("text/") || file.name.endsWith(".txt") || file.name.endsWith(".csv")) return "text";
+    return "other";
+}
+
+function FilePreviewOverlay({ entry, onClose }) {
+    const [textContent, setTextContent] = useState(null);
+    const [objUrl,      setObjUrl]      = useState(null);
+    const [zoom,        setZoom]        = useState(1);
+    const bodyRef = useRef(null);
+
+    const canZoom = entry.kind === "image" || entry.kind === "pdf";
+    const MIN_ZOOM = 0.25, MAX_ZOOM = 4, STEP = 0.25;
+
+    const zoomIn    = useCallback(() => setZoom(z => Math.min(MAX_ZOOM, parseFloat((z + STEP).toFixed(2)))), []);
+    const zoomOut   = useCallback(() => setZoom(z => Math.max(MIN_ZOOM, parseFloat((z - STEP).toFixed(2)))), []);
+    const zoomReset = () => setZoom(1);
+
+    // Ctrl + scroll wheel zoom
+    useEffect(() => {
+        const el = bodyRef.current;
+        if (!el || !canZoom) return;
+        const onWheel = (e) => {
+            if (!e.ctrlKey) return;
+            e.preventDefault();
+            if (e.deltaY < 0) zoomIn(); else zoomOut();
+        };
+        el.addEventListener("wheel", onWheel, { passive: false });
+        return () => el.removeEventListener("wheel", onWheel);
+    }, [canZoom, zoomIn, zoomOut]);
+
+    useEffect(() => {
+        setZoom(1); // reset zoom when switching files
+        const url = URL.createObjectURL(entry.file);
+        setObjUrl(url);
+        if (entry.kind === "text") {
+            const reader = new FileReader();
+            reader.onload = e => setTextContent(e.target.result);
+            reader.readAsText(entry.file);
+        }
+        return () => URL.revokeObjectURL(url);
+    }, [entry]);
+
+    const handleDownload = () => {
+        if (!objUrl) return;
+        const a = document.createElement("a");
+        a.href = objUrl;
+        a.download = entry.file.name;
+        a.click();
+    };
+
+    return (
+        <div className="fpv-overlay" onClick={onClose}>
+            <div className="fpv-shell" onClick={e => e.stopPropagation()}>
+
+                {/* ── Header ── */}
+                <div className="fpv-header">
+                    <span className="fpv-filename">{entry.file.name}</span>
+
+                    {canZoom && (
+                        <div className="fpv-zoom-bar">
+                            <button
+                                className="fpv-zoom-btn"
+                                onClick={zoomOut}
+                                disabled={zoom <= MIN_ZOOM}
+                                title="Zoom out"
+                            >−</button>
+                            <span
+                                className="fpv-zoom-level"
+                                onClick={zoomReset}
+                                title="Click to reset zoom"
+                            >{Math.round(zoom * 100)}%</span>
+                            <button
+                                className="fpv-zoom-btn"
+                                onClick={zoomIn}
+                                disabled={zoom >= MAX_ZOOM}
+                                title="Zoom in"
+                            >+</button>
+                        </div>
+                    )}
+
+                    <div className="fpv-header-actions">
+                        <button className="fpv-btn" onClick={handleDownload} title="Download">
+                            <FiDownload size={15} />
+                        </button>
+                        <button className="fpv-btn fpv-close-btn" onClick={onClose} title="Close">
+                            <FiX size={15} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* ── Body ── */}
+                <div className="fpv-body" ref={bodyRef}>
+                    {!objUrl && <p className="fpv-loading">Loading…</p>}
+
+                    {objUrl && entry.kind === "image" && (
+                        <div
+                            className="fpv-zoom-wrap"
+                            style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
+                        >
+                            <img src={objUrl} alt={entry.file.name} className="fpv-image" />
+                        </div>
+                    )}
+
+                    {objUrl && entry.kind === "pdf" && (
+                        <div
+                            className="fpv-zoom-wrap fpv-zoom-wrap-pdf"
+                            style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}
+                        >
+                            <iframe src={objUrl} title={entry.file.name} className="fpv-iframe" />
+                        </div>
+                    )}
+
+                    {objUrl && entry.kind === "video" && (
+                        <video src={objUrl} controls className="fpv-video">
+                            Your browser does not support video playback.
+                        </video>
+                    )}
+
+                    {entry.kind === "text" && (
+                        textContent === null
+                            ? <p className="fpv-loading">Reading file…</p>
+                            : <pre className="fpv-text">{textContent}</pre>
+                    )}
+                </div>
+
+                {/* ── Zoom hint ── */}
+                {canZoom && (
+                    <div className="fpv-footer-hint">
+                        Ctrl + scroll to zoom &nbsp;·&nbsp; click % to reset
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function NewTicketModal({ onClose, onCreated }) {
+    const [form,        setForm]        = useState(EMPTY_FORM);
+    const [users,       setUsers]       = useState([]);
+    const [departments, setDepartments] = useState([]);
+    const [submitting,  setSubmitting]  = useState(false);
+    const [error,       setError]       = useState("");
+    const [files,       setFiles]       = useState([]);   // { file, id, kind, thumbUrl, error }
+    const [dragOver,    setDragOver]    = useState(false);
+    const [preview,     setPreview]     = useState(null); // { file, kind }
+    const fileInputRef = useRef(null);
+
+    useEffect(() => {
+        Promise.all([
+            api.get("accounts/users/?page_size=200"),
+            api.get("accounts/departments/?page_size=200"),
+        ]).then(([u, d]) => {
+            setUsers(u.data.results ?? []);
+            setDepartments(d.data.results ?? []);
+        }).catch(() => {});
+    }, []);
+
+    const handleChange = (e) => {
+        setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+        setError("");
+    };
+
+    // Revoke all thumb URLs when modal unmounts
+    useEffect(() => {
+        return () => {
+            setFiles(prev => { prev.forEach(e => e.thumbUrl && URL.revokeObjectURL(e.thumbUrl)); return prev; });
+        };
+    }, []);
+
+    const addFiles = (rawFiles) => {
+        // Convert FileList → Array synchronously before any async work,
+        // and do all heavy work (createObjectURL, quota calc) outside the
+        // state updater so it runs exactly once.
+        const fileArray = Array.from(rawFiles);
+        if (!fileArray.length) return;
+
+        let used = files.filter(e => !e.error).reduce((s, e) => s + e.file.size, 0);
+
+        const newEntries = fileArray.map((f, i) => {
+            const ext      = f.name.split('.').pop().toLowerCase();
+            const kind     = getFileKind(f);
+            let fileError  = null;
+            if (!ALLOWED_EXTS.has(ext)) {
+                fileError = `".${ext}" not allowed`;
+            } else if (used + f.size > TOTAL_MAX) {
+                fileError = "Exceeds 50 MB total limit";
+            } else {
+                used += f.size;
+            }
+            const thumbUrl = kind === "image" && !fileError ? URL.createObjectURL(f) : null;
+            return { file: f, id: `${f.name}-${f.size}-${Date.now()}-${i}`, kind, thumbUrl, error: fileError };
+        });
+
+        setFiles(prev => [...prev, ...newEntries]);
+    };
+
+    const removeFile = (id) => {
+        setFiles(prev => {
+            const entry = prev.find(e => e.id === id);
+            if (entry?.thumbUrl) URL.revokeObjectURL(entry.thumbUrl);
+            return prev.filter(e => e.id !== id);
+        });
+    };
+
+    const openPreview = (entry) => {
+        if (entry.error) return;
+        if (entry.kind === "other") {
+            const url = URL.createObjectURL(entry.file);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = entry.file.name;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } else {
+            setPreview(entry);
+        }
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        setDragOver(false);
+        addFiles(e.dataTransfer.files);
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!form.title.trim()) { setError("Title is required."); return; }
+        const invalidFiles = files.filter(f => f.error);
+        if (invalidFiles.length) { setError("Remove invalid files before submitting."); return; }
+        setSubmitting(true);
+        setError("");
+        try {
+            const payload = { title: form.title.trim(), priority: form.priority };
+            if (form.description.trim()) payload.description = form.description.trim();
+            if (form.department)  payload.department  = Number(form.department);
+            if (form.assigned_to) payload.assigned_to = Number(form.assigned_to);
+            const res = await api.post("tickets/", payload);
+            const ticketId = res.data.id;
+
+            if (files.length) {
+                await Promise.all(files.map(({ file }) => {
+                    const fd = new FormData();
+                    fd.append("file", file);
+                    return api.post(`tickets/${ticketId}/attachments/`, fd, {
+                        headers: { "Content-Type": "multipart/form-data" },
+                    });
+                }));
+            }
+
+            onCreated();
+            onClose();
+        } catch (err) {
+            const data = err.response?.data;
+            if (data && typeof data === "object") {
+                const msgs = Object.values(data).flat();
+                setError(msgs.join(" "));
+            } else {
+                setError("Something went wrong. Please try again.");
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <>
+        {preview && (
+            <FilePreviewOverlay entry={preview} onClose={() => setPreview(null)} />
+        )}
+        <div className="ntm-overlay" onClick={onClose}>
+            <div className="ntm-card" onClick={e => e.stopPropagation()}>
+                <div className="ntm-header">
+                    <h2 className="ntm-title">New Ticket</h2>
+                    <button className="ntm-close" onClick={onClose}><FiX size={16} /></button>
+                </div>
+
+                <form onSubmit={handleSubmit}>
+                    <div className="ntm-body">
+                        {error && <p className="ntm-error">{error}</p>}
+
+                        <div>
+                            <label className="ntm-label">
+                                Title <span className="ntm-required">*</span>
+                            </label>
+                            <input
+                                className="ntm-input"
+                                name="title"
+                                placeholder="Brief summary of the issue"
+                                value={form.title}
+                                onChange={handleChange}
+                                autoFocus
+                            />
+                        </div>
+
+                        <div>
+                            <label className="ntm-label">Description</label>
+                            <textarea
+                                className="ntm-textarea"
+                                name="description"
+                                placeholder="Detailed description of the issue (optional)"
+                                value={form.description}
+                                onChange={handleChange}
+                            />
+                        </div>
+
+                        <div className="ntm-row-2">
+                            <div>
+                                <label className="ntm-label">Priority</label>
+                                <select
+                                    className="ntm-select"
+                                    name="priority"
+                                    value={form.priority}
+                                    onChange={handleChange}
+                                >
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="critical">Critical</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="ntm-label">Department</label>
+                                <select
+                                    className="ntm-select"
+                                    name="department"
+                                    value={form.department}
+                                    onChange={handleChange}
+                                >
+                                    <option value="">No Department</option>
+                                    {departments.map(d => (
+                                        <option key={d.id} value={d.id}>{d.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="ntm-label">Assign To</label>
+                            <select
+                                className="ntm-select"
+                                name="assigned_to"
+                                value={form.assigned_to}
+                                onChange={handleChange}
+                            >
+                                <option value="">Unassigned</option>
+                                {users.map(u => (
+                                    <option key={u.id} value={u.id}>
+                                        {u.name || u.username}
+                                        {u.emp_id ? ` (${u.emp_id})` : ""}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* ── Attachments ── */}
+                        <div>
+                            <label className="ntm-label">Attachments</label>
+                            <div
+                                className={`ntm-dropzone${dragOver ? " ntm-dropzone-active" : ""}`}
+                                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                                onDragLeave={() => setDragOver(false)}
+                                onDrop={handleDrop}
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                <span className="ntm-drop-icon">📎</span>
+                                <span className="ntm-drop-text">
+                                    Drop files here or <span className="ntm-drop-link">browse</span>
+                                </span>
+                                <span className="ntm-drop-hint">PDF, images, video, docs, zip · 50 MB total</span>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    multiple
+                                    style={{ display: "none" }}
+                                    onChange={e => { addFiles(e.target.files); e.target.value = ""; }}
+                                />
+                            </div>
+
+                            {files.length > 0 && (
+                                <ul className="ntm-file-list">
+                                    {files.map((entry) => {
+                                        const { file, id, kind, thumbUrl, error: fileErr } = entry;
+                                        return (
+                                            <li key={id} className={`ntm-file-item${fileErr ? " ntm-file-item-error" : ""}`}>
+                                                {/* Thumbnail or kind icon */}
+                                                <div className="ntm-file-thumb-wrap">
+                                                    {thumbUrl
+                                                        ? <img src={thumbUrl} alt="" className="ntm-file-thumb" />
+                                                        : <span className="ntm-file-kind-icon">
+                                                            {kind === "pdf"   ? "📕" :
+                                                             kind === "video" ? "🎬" :
+                                                             kind === "text"  ? "📝" : "📦"}
+                                                          </span>
+                                                    }
+                                                </div>
+
+                                                {/* Name + meta */}
+                                                <div className="ntm-file-info">
+                                                    <span className="ntm-file-name">{file.name}</span>
+                                                    <span className="ntm-file-meta">
+                                                        {fileErr
+                                                            ? <span className="ntm-file-err">{fileErr}</span>
+                                                            : formatBytes(file.size)
+                                                        }
+                                                    </span>
+                                                </div>
+
+                                                {/* Action buttons — always visible */}
+                                                <div className="ntm-file-actions">
+                                                    {!fileErr && (
+                                                        <button
+                                                            type="button"
+                                                            className="ntm-fab ntm-fab-preview"
+                                                            onClick={() => openPreview(entry)}
+                                                            title={kind === "other" ? "Download" : "Preview"}
+                                                        >
+                                                            {kind === "other"
+                                                                ? <><FiDownload size={12} /> Download</>
+                                                                : <><FiEye size={12} /> Preview</>
+                                                            }
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        className="ntm-fab ntm-fab-delete"
+                                                        onClick={() => removeFile(id)}
+                                                        title="Remove file"
+                                                    >
+                                                        <FiX size={12} /> Delete
+                                                    </button>
+                                                </div>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
+
+                            {/* ── Total size quota bar ── */}
+                            {files.length > 0 && (() => {
+                                const used    = files.filter(e => !e.error).reduce((s, e) => s + e.file.size, 0);
+                                const pct     = Math.min(100, (used / TOTAL_MAX) * 100);
+                                const over    = used > TOTAL_MAX;
+                                const barColor = pct >= 100 ? "#dc2626" : pct >= 80 ? "#d97706" : "#2563eb";
+                                return (
+                                    <div className="ntm-quota-wrap">
+                                        <div className="ntm-quota-row">
+                                            <span className="ntm-quota-label">Total size</span>
+                                            <span className="ntm-quota-val" style={{ color: barColor }}>
+                                                {formatBytes(used)} / 50 MB
+                                                {over && " — over limit"}
+                                            </span>
+                                        </div>
+                                        <div className="ntm-quota-track">
+                                            <div
+                                                className="ntm-quota-fill"
+                                                style={{ width: `${pct}%`, background: barColor }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    </div>
+
+                    <div className="ntm-footer">
+                        <button type="button" className="ntm-btn-cancel" onClick={onClose}>
+                            Cancel
+                        </button>
+                        <button type="submit" className="ntm-btn-submit" disabled={submitting}>
+                            <FiPlus size={14} />
+                            {submitting ? "Creating…" : "Create Ticket"}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        </>
+    );
+}
+
 // ─── Tickets Page ─────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 10;
@@ -115,6 +618,7 @@ function Tickets() {
     const [view,          setView]         = useState("table");
     const [activeFilter,  setActiveFilter] = useState("");
     const [search,        setSearch]       = useState("");
+    const [showModal,     setShowModal]    = useState(false);
 
     const [stats,         setStats]        = useState(null);
     const [tickets,       setTickets]      = useState([]);
@@ -187,11 +691,34 @@ function Tickets() {
         loadTickets(pg, activeFilter, search);
     };
 
+    const refreshAll = async () => {
+        try {
+            const [statsRes, distRes] = await Promise.all([
+                api.get("tickets/stats/"),
+                api.get("tickets/priority-distribution/"),
+            ]);
+            setStats(statsRes.data);
+            setPriorityDist(distRes.data);
+        } catch (err) {
+            console.error("Refresh stats error:", err);
+        }
+        await loadTickets(1, activeFilter, search);
+        setPage(1);
+        if (view === "kanban") loadKanban();
+    };
+
     const start = (page - 1) * PAGE_SIZE + 1;
     const end   = Math.min(page * PAGE_SIZE, totalCount);
 
     return (
         <div className="tl-page">
+
+            {showModal && (
+                <NewTicketModal
+                    onClose={() => setShowModal(false)}
+                    onCreated={refreshAll}
+                />
+            )}
 
             {/* ── Header ── */}
             <div className="tl-header">
@@ -202,7 +729,9 @@ function Tickets() {
                 <div className="tl-header-btns">
                     <button className="tl-btn-outline"><FiFilter size={14} /> Filter</button>
                     <button className="tl-btn-outline"><FiDownload size={14} /> Export</button>
-                    <button className="tl-btn-primary"><FiPlus size={14} /> New Ticket</button>
+                    <button className="tl-btn-primary" onClick={() => setShowModal(true)}>
+                        <FiPlus size={14} /> New Ticket
+                    </button>
                 </div>
             </div>
 
@@ -433,8 +962,12 @@ function Tickets() {
                     <div className="tl-card">
                         <p className="tl-sidebar-title">QUICK ACTIONS</p>
                         <div className="tl-qa-grid">
-                            {quickActions.map((qa, i) => (
-                                <button key={i} className="tl-qa-tile">
+                            {quickActionDefs.map((qa) => (
+                                <button
+                                    key={qa.key}
+                                    className="tl-qa-tile"
+                                    onClick={qa.key === "new" ? () => setShowModal(true) : undefined}
+                                >
                                     <span className="tl-qa-icon">{qa.icon}</span>
                                     {qa.label}
                                 </button>

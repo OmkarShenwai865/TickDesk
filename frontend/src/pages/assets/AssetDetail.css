@@ -1,0 +1,469 @@
+/* ── Page shell ── */
+.adet-page {
+    min-height: 100vh;
+    padding: 22px 24px;
+    background: #f8fafc;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.adet-center {
+    align-items: center;
+    justify-content: center;
+}
+
+.adet-empty {
+    color: #94a3b8;
+    font-size: 1.05rem;
+}
+
+/* ── Header ── */
+.adet-header {
+    background: #fff;
+    border: 1px solid #e8ecf0;
+    border-radius: 14px;
+    padding: 18px 22px;
+    box-shadow: 0 1px 6px rgba(15, 23, 42, 0.04);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 20px;
+}
+
+.adet-header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+}
+
+.adet-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: #6b7280;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.15s;
+    width: fit-content;
+}
+.adet-back-btn:hover { color: #2563eb; }
+
+.adet-id-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.adet-asset-tag {
+    font-size: 22px;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.3px;
+    font-family: monospace;
+}
+
+.adet-subtitle {
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+/* ── Badges ── */
+.adet-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 11px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.adet-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.adb-available   { background: #f0fdf4; color: #16a34a; }
+.adb-assigned    { background: #eff6ff; color: #2563eb; }
+.adb-maintenance { background: #fff7ed; color: #ea580c; }
+.adb-retired     { background: #f3f4f6; color: #6b7280; }
+.adet-cat-badge  { font-weight: 600; }
+
+/* ── Header action buttons ── */
+.adet-header-actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.adet-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 15px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 9px;
+    cursor: pointer;
+    border: none;
+    white-space: nowrap;
+    width: auto;
+    flex-shrink: 0;
+    transition: background 0.15s, transform 0.12s;
+}
+
+.adet-btn-outline {
+    color: #374151;
+    background: #fff;
+    border: 1.5px solid #d1d5db;
+}
+.adet-btn-outline:hover { background: #f9fafb; border-color: #9ca3af; }
+
+.adet-btn-green {
+    color: #fff;
+    background: #16a34a;
+    box-shadow: 0 2px 8px rgba(22, 163, 74, 0.25);
+}
+.adet-btn-green:hover  { background: #15803d; transform: translateY(-1px); }
+
+.adet-btn-danger {
+    color: #fff;
+    background: #ef4444;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
+}
+.adet-btn-danger:hover { background: #dc2626; transform: translateY(-1px); }
+
+/* ── Content layout ── */
+.adet-content {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 18px;
+    align-items: start;
+}
+
+.adet-left {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.adet-right {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* ── Base card ── */
+.adet-card {
+    background: #fff;
+    border: 1px solid #e8ecf0;
+    border-radius: 14px;
+    padding: 20px 22px;
+    box-shadow: 0 1px 6px rgba(15, 23, 42, 0.04);
+}
+
+.adet-card-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+.adet-card-heading h2 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+}
+.adet-heading-icon { color: #6b7280; }
+
+.adet-divider {
+    border: none;
+    border-top: 1px solid #f1f5f9;
+    margin: 0 0 18px;
+}
+
+/* ── Asset info fields ── */
+.adet-field-full { margin-bottom: 18px; }
+
+.adet-field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px 28px;
+    margin-bottom: 18px;
+}
+.adet-field-row:last-child { margin-bottom: 0; }
+
+.adet-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.adet-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    color: #9ca3af;
+    text-transform: uppercase;
+}
+
+.adet-value {
+    font-size: 13.5px;
+    color: #374151;
+    font-weight: 500;
+}
+
+.adet-asset-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.adet-cat-val {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+}
+
+.adet-mono {
+    font-family: monospace;
+    font-size: 13px;
+    color: #64748b;
+    letter-spacing: 0.03em;
+}
+
+/* ── Assignment card ── */
+.adet-assignee-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: #f8fafc;
+    border: 1px solid #e8ecf0;
+    border-radius: 11px;
+}
+
+.adet-assignee-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.adet-assignee-info { flex: 1; }
+
+.adet-assignee-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+    margin-bottom: 2px;
+}
+
+.adet-assignee-meta {
+    font-size: 12.5px;
+    color: #6b7280;
+    line-height: 1.5;
+}
+
+.adet-assignee-badge {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #2563eb;
+    background: #eff6ff;
+    border-radius: 20px;
+    padding: 4px 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.adet-unassigned {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 0 8px;
+    gap: 6px;
+    text-align: center;
+}
+
+.adet-unassigned-icon { color: #d1d5db; }
+
+.adet-unassigned-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin-top: 6px;
+}
+
+.adet-unassigned-sub {
+    font-size: 13px;
+    color: #9ca3af;
+}
+
+/* ── Activity log ── */
+.adet-log-list { display: flex; flex-direction: column; }
+
+.adet-log-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.adet-log-icon-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    padding-top: 2px;
+}
+
+.adet-log-line {
+    width: 2px;
+    background: #f1f5f9;
+    flex: 1;
+    min-height: 18px;
+    margin: 4px 0;
+}
+
+.adet-log-body { padding-bottom: 14px; }
+
+.adet-log-text {
+    font-size: 13.5px;
+    color: #374151;
+    line-height: 1.5;
+    margin-bottom: 2px;
+}
+
+.adet-log-time {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+/* ── Sidebar: Summary ── */
+.adet-sidebar-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    color: #6b7280;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+}
+
+.adet-summary-icon-wrap {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+}
+
+.adet-summary-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.adet-summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+.adet-summary-row:first-child { padding-top: 0; }
+.adet-summary-row:last-child  { border-bottom: none; padding-bottom: 0; }
+
+.adet-summary-key {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: #6b7280;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.adet-summary-val {
+    font-size: 12.5px;
+    color: #374151;
+    font-weight: 600;
+    text-align: right;
+    word-break: break-word;
+}
+
+/* ── Sidebar: Quick Actions ── */
+.adet-qa-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.adet-qa-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border: 1px solid #e8ecf0;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s, border-color 0.15s;
+    box-sizing: border-box;
+}
+
+.adet-qa-btn:hover {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #1d4ed8;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1100px) {
+    .adet-content { grid-template-columns: 1fr 260px; }
+}
+
+@media (max-width: 900px) {
+    .adet-content { grid-template-columns: 1fr; }
+    .adet-right { flex-direction: row; flex-wrap: wrap; }
+    .adet-right .adet-card { flex: 1; min-width: 240px; }
+}
+
+@media (max-width: 720px) {
+    .adet-header { grid-template-columns: 1fr; gap: 14px; }
+    .adet-header-actions { flex-wrap: wrap; }
+}
+
+@media (max-width: 600px) {
+    .adet-page { padding: 14px; }
+    .adet-field-row { grid-template-columns: 1fr; }
+    .adet-right { flex-direction: column; }
+}

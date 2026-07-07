@@ -4,8 +4,8 @@ import api from "../../services/api";
 import {FaEye,FaEyeSlash} from "react-icons/fa";  
 import {useNavigate} from "react-router-dom";
 function Login(){
-    const [username,setUsername] = useState("");
-    const [password,setPassword] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
     const [showPassword,setShowPassword] = useState(false);
     const [message, setMessage] = useState("");
     const [messageType,setMessageType]= useState("");
@@ -18,9 +18,9 @@ function Login(){
     },[navigate]);
     const handleLogin = async ()=> {
     try{
-        const response = await api.post("accounts/login/",{
-            username : username,
-            password : password,
+        const response = await api.post("accounts/login/", {
+            username: email,
+            password: password,
         });
         // console.log(response.data);
         localStorage.setItem("access", response.data.access);
@@ -47,9 +47,9 @@ function Login(){
                 <h1>Tickdesk</h1>
                 <p>IT Helpdesk and Asset Management System</p>
                 <div className="form-group">
-                    <label>Username <span style={{color:"red"}}>*</span></label>
-                    <input type="text" placeholder="Enter Username" value={username}
-                    onChange={(e)=>setUsername(e.target.value)} required/>
+                    <label>Email <span style={{color:"red"}}>*</span></label>
+                    <input type="email" placeholder="Enter your email" value={email}
+                    onChange={(e)=>setEmail(e.target.value)} required/>
                 </div>
                 <div className="form-group">
                     <label>Password <span style={{color:"red"}}>*</span></label>

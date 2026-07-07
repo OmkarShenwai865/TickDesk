@@ -608,3 +608,179 @@
   .dep-drawer { width: 100vw; }
   .dep-widgets { grid-template-columns: 1fr; }
 }
+
+/* ── New Department Modal ────────────────────────────────────────────────── */
+.ndm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  animation: ndmFadeIn 0.18s ease;
+}
+@keyframes ndmFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.ndm-card {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+  animation: ndmSlideUp 0.2s ease;
+  overflow: hidden;
+}
+@keyframes ndmSlideUp {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.ndm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.ndm-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+.ndm-close {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border: none;
+  border-radius: 8px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.ndm-close:hover { background: #e2e8f0; color: #374151; }
+
+.ndm-body {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 72vh;
+  overflow-y: auto;
+}
+
+.ndm-err-banner {
+  font-size: 12.5px;
+  color: #ef4444;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 13px;
+}
+
+.ndm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ndm-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  letter-spacing: 0.02em;
+}
+.ndm-required { color: #ef4444; margin-left: 2px; }
+
+.ndm-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ndm-input,
+.ndm-select {
+  width: 100%;
+  padding: 9px 13px;
+  font-size: 13.5px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 9px;
+  background: #fff;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+.ndm-input:focus,
+.ndm-select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+.ndm-input-err { border-color: #ef4444 !important; }
+.ndm-input-err:focus { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important; }
+
+.ndm-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 34px;
+  cursor: pointer;
+}
+.ndm-textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+
+.ndm-field-err {
+  font-size: 11.5px;
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.ndm-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 22px 18px;
+  border-top: 1px solid #f1f5f9;
+}
+.ndm-btn-cancel {
+  padding: 9px 18px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #374151;
+  background: #fff;
+  border: 1.5px solid #d1d5db;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+.ndm-btn-cancel:hover:not(:disabled) { background: #f9fafb; }
+.ndm-btn-cancel:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ndm-btn-submit {
+  padding: 9px 20px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #fff;
+  background: #2563eb;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s, transform 0.12s;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+  font-family: inherit;
+}
+.ndm-btn-submit:hover:not(:disabled) { background: #1d4ed8; transform: translateY(-1px); }
+.ndm-btn-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }

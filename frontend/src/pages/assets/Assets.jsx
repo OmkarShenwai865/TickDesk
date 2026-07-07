@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import "./Assets.css";
 
@@ -19,6 +20,7 @@ import {
     FiAlertTriangle,
     FiUploadCloud,
     FiTag,
+    FiX,
 } from "react-icons/fi";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -78,15 +80,205 @@ function CatIcon({ category }) {
     );
 }
 
+// ─── Add Asset Modal ──────────────────────────────────────────────────────────
+
+const EMPTY_FORM = {
+    asset_name: "", category: "",
+    status: "available", assigned_to: "", department: "", purchase_date: "",
+};
+
+function AddAssetModal({ onClose, onSuccess }) {
+    const [form,   setForm]   = useState(EMPTY_FORM);
+    const [errors, setErrors] = useState({});
+    const [saving, setSaving] = useState(false);
+    const [users,  setUsers]  = useState([]);
+    const [depts,  setDepts]  = useState([]);
+
+    useEffect(() => {
+        api.get("accounts/users/?page_size=200").then(r => setUsers(r.data.results)).catch(() => {});
+        api.get("accounts/departments/?page_size=200").then(r => setDepts(r.data.results)).catch(() => {});
+    }, []);
+
+    const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
+
+    const validate = () => {
+        const e = {};
+        if (!form.asset_name.trim()) e.asset_name = "Asset name is required";
+        if (!form.category)          e.category   = "Category is required";
+        return e;
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        const errs = validate();
+        if (Object.keys(errs).length) { setErrors(errs); return; }
+        setSaving(true);
+        try {
+            const payload = {
+                asset_name: form.asset_name.trim(),
+                category:   form.category,
+                status:     form.status,
+                ...(form.assigned_to   && { assigned_to: parseInt(form.assigned_to) }),
+                ...(form.department    && { department:  parseInt(form.department)  }),
+                ...(form.purchase_date && { purchase_date: form.purchase_date       }),
+            };
+            await api.post("assets/", payload);
+            onSuccess();
+        } catch (err) {
+            const data = err.response?.data || {};
+            const mapped = {};
+            for (const [k, v] of Object.entries(data)) {
+                mapped[k] = Array.isArray(v) ? v[0] : String(v);
+            }
+            setErrors(mapped);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <>
+            <div className="ast-modal-overlay" onClick={onClose} />
+            <div className="ast-modal">
+                {/* Header */}
+                <div className="ast-modal-header">
+                    <div>
+                        <h2 className="ast-modal-title">Add New Asset</h2>
+                        <p className="ast-modal-sub">Register a new IT asset in your inventory</p>
+                    </div>
+                    <button className="ast-modal-close" onClick={onClose}>
+                        <FiX size={17} />
+                    </button>
+                </div>
+
+                {/* Form */}
+                <form className="ast-modal-body" onSubmit={handleSubmit}>
+
+                    {/* Asset Name */}
+                    <div className="ast-form-row">
+                        <label>Asset Name <span className="ast-req">*</span></label>
+                        <input
+                            className={`ast-input${errors.asset_name ? " ast-input-err" : ""}`}
+                            value={form.asset_name}
+                            onChange={e => set("asset_name", e.target.value)}
+                            placeholder='e.g. MacBook Pro 14"'
+                        />
+                        {errors.asset_name && <span className="ast-err-msg">{errors.asset_name}</span>}
+                    </div>
+
+                    {/* Category + Status */}
+                    <div className="ast-form-2col">
+                        <div className="ast-form-row">
+                            <label>Category <span className="ast-req">*</span></label>
+                            <select
+                                className={`ast-select${errors.category ? " ast-input-err" : ""}`}
+                                value={form.category}
+                                onChange={e => set("category", e.target.value)}
+                            >
+                                <option value="">Select category…</option>
+                                <option value="laptop">Laptop</option>
+                                <option value="desktop">Desktop</option>
+                                <option value="monitor">Monitor</option>
+                                <option value="printer">Printer</option>
+                                <option value="networking">Networking</option>
+                                <option value="server">Server</option>
+                                <option value="other">Other</option>
+                            </select>
+                            {errors.category && <span className="ast-err-msg">{errors.category}</span>}
+                        </div>
+                        <div className="ast-form-row">
+                            <label>Status</label>
+                            <select
+                                className="ast-select"
+                                value={form.status}
+                                onChange={e => set("status", e.target.value)}
+                            >
+                                <option value="available">Available</option>
+                                <option value="assigned">Assigned</option>
+                                <option value="maintenance">Maintenance</option>
+                                <option value="retired">Retired</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Assigned To + Department */}
+                    <div className="ast-form-2col">
+                        <div className="ast-form-row">
+                            <label>Assigned To</label>
+                            <select
+                                className="ast-select"
+                                value={form.assigned_to}
+                                onChange={e => {
+                                    set("assigned_to", e.target.value);
+                                    if (e.target.value) set("status", "assigned");
+                                }}
+                            >
+                                <option value="">Unassigned</option>
+                                {users.map(u => (
+                                    <option key={u.id} value={u.id}>{u.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="ast-form-row">
+                            <label>Department</label>
+                            <select
+                                className="ast-select"
+                                value={form.department}
+                                onChange={e => set("department", e.target.value)}
+                            >
+                                <option value="">No department</option>
+                                {depts.map(d => (
+                                    <option key={d.id} value={d.id}>{d.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Purchase Date */}
+                    <div className="ast-form-row">
+                        <label>Purchase Date</label>
+                        <input
+                            type="date"
+                            className="ast-input"
+                            value={form.purchase_date}
+                            onChange={e => set("purchase_date", e.target.value)}
+                        />
+                    </div>
+
+                    {/* Server error */}
+                    {errors.non_field_errors && (
+                        <p className="ast-err-msg">{errors.non_field_errors}</p>
+                    )}
+                    {errors.detail && (
+                        <p className="ast-err-msg">{errors.detail}</p>
+                    )}
+
+                    {/* Footer */}
+                    <div className="ast-modal-footer">
+                        <button type="button" className="ast-btn-cancel" onClick={onClose}>
+                            Cancel
+                        </button>
+                        <button type="submit" className="btn-primary" disabled={saving}>
+                            {saving ? "Adding…" : "Add Asset"}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </>
+    );
+}
+
 // ─── Assets Page ─────────────────────────────────────────────────────────────
 
 function Assets() {
+    const navigate = useNavigate();
     const [stats,        setStats]        = useState(null);
     const [assets,       setAssets]       = useState([]);
     const [totalCount,   setTotalCount]   = useState(0);
     const [page,         setPage]         = useState(1);
     const [distribution, setDistribution] = useState([]);
     const [loading,      setLoading]      = useState(true);
+    const [showModal,    setShowModal]    = useState(false);
 
     const PAGE_SIZE = 10;
     const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -126,6 +318,17 @@ function Assets() {
         await loadAssets(pg);
     };
 
+    const refreshAll = async () => {
+        const [statsRes, distRes] = await Promise.all([
+            api.get("assets/stats/"),
+            api.get("assets/distribution/"),
+        ]);
+        setStats(statsRes.data);
+        setDistribution(distRes.data);
+        await loadAssets(1);
+        setPage(1);
+    };
+
     const statCards = [
         { Icon: FiMonitor,     label: "TOTAL ASSETS", value: stats?.total       ?? "—", color: "#2563eb", bg: "#eff6ff" },
         { Icon: FiUser,        label: "ASSIGNED",     value: stats?.assigned    ?? "—", color: "#7c3aed", bg: "#f5f3ff" },
@@ -150,7 +353,9 @@ function Assets() {
                 <div className="assets-header-btns">
                     <button className="btn-outline"><FiFilter size={13} /> Filter</button>
                     <button className="btn-outline"><FiDownload size={13} /> Export</button>
-                    <button className="btn-primary"><FiPlus size={13} /> Add Asset</button>
+                    <button className="btn-primary" onClick={() => setShowModal(true)}>
+                        <FiPlus size={13} /> Add Asset
+                    </button>
                 </div>
             </div>
 
@@ -211,7 +416,11 @@ function Assets() {
                                             </td>
                                         </tr>
                                     ) : assets.map(a => (
-                                        <tr key={a.id}>
+                                        <tr
+                                            key={a.id}
+                                            className="asset-row-clickable"
+                                            onClick={() => navigate(`/assets/${a.id}`)}
+                                        >
                                             <td className="col-id">{a.asset_tag}</td>
                                             <td className="col-name">
                                                 <CatIcon category={a.category_display} />
@@ -358,6 +567,17 @@ function Assets() {
                     <a href="#">Help Center</a>
                 </div>
             </footer>
+
+            {/* ── Add Asset Modal ── */}
+            {showModal && (
+                <AddAssetModal
+                    onClose={() => setShowModal(false)}
+                    onSuccess={() => {
+                        setShowModal(false);
+                        refreshAll();
+                    }}
+                />
+            )}
 
         </div>
     );

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Ticket
+from .models import Ticket, TicketAttachment, TicketComment, TicketActivity
 
 
 class TicketSerializer(serializers.ModelSerializer):
@@ -34,3 +34,61 @@ class TicketSerializer(serializers.ModelSerializer):
 
     def get_department_name(self, obj):
         return obj.department.name if obj.department else None
+
+
+class TicketAttachmentSerializer(serializers.ModelSerializer):
+    uploaded_by_name = serializers.SerializerMethodField()
+    file_url         = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = TicketAttachment
+        fields = [
+            'id', 'original_name', 'file_size', 'file_url',
+            'uploaded_by', 'uploaded_by_name', 'uploaded_at',
+        ]
+        read_only_fields = ['id', 'original_name', 'file_size', 'uploaded_at']
+
+    def get_uploaded_by_name(self, obj):
+        if obj.uploaded_by:
+            return obj.uploaded_by.get_full_name() or obj.uploaded_by.username
+        return None
+
+    def get_file_url(self, obj):
+        request = self.context.get('request')
+        if obj.file and request:
+            return request.build_absolute_uri(obj.file.url)
+        return None
+
+
+class TicketCommentSerializer(serializers.ModelSerializer):
+    author_name   = serializers.SerializerMethodField()
+    author_initials = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = TicketComment
+        fields = ['id', 'text', 'author', 'author_name', 'author_initials', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+    def get_author_name(self, obj):
+        if obj.author:
+            return obj.author.get_full_name() or obj.author.username
+        return "Unknown"
+
+    def get_author_initials(self, obj):
+        name = self.get_author_name(obj)
+        parts = name.split()
+        return "".join(p[0] for p in parts[:2]).upper() if parts else "?"
+
+
+class TicketActivitySerializer(serializers.ModelSerializer):
+    actor_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = TicketActivity
+        fields = ['id', 'action', 'actor', 'actor_name', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+    def get_actor_name(self, obj):
+        if obj.actor:
+            return obj.actor.get_full_name() or obj.actor.username
+        return "System"
