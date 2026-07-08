@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "../../services/api";
 import "./Assets.css";
 
@@ -87,8 +87,8 @@ const EMPTY_FORM = {
     status: "available", assigned_to: "", department: "", purchase_date: "",
 };
 
-function AddAssetModal({ onClose, onSuccess }) {
-    const [form,   setForm]   = useState(EMPTY_FORM);
+function AddAssetModal({ onClose, onSuccess, defaultDepartment = "" }) {
+    const [form,   setForm]   = useState({ ...EMPTY_FORM, department: defaultDepartment ? String(defaultDepartment) : "" });
     const [errors, setErrors] = useState({});
     const [saving, setSaving] = useState(false);
     const [users,  setUsers]  = useState([]);
@@ -98,6 +98,11 @@ function AddAssetModal({ onClose, onSuccess }) {
         api.get("accounts/users/?page_size=200").then(r => setUsers(r.data.results)).catch(() => {});
         api.get("accounts/departments/?page_size=200").then(r => setDepts(r.data.results)).catch(() => {});
     }, []);
+
+    useEffect(() => {
+        if (!defaultDepartment) return;
+        setForm(f => ({ ...f, department: String(defaultDepartment) }));
+    }, [defaultDepartment]);
 
     const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
@@ -272,6 +277,10 @@ function AddAssetModal({ onClose, onSuccess }) {
 
 function Assets() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const role = localStorage.getItem("role") || "employee";
+    const isAdmin = role === "admin";
+    const myUserId = parseInt(localStorage.getItem("user_id") || "0");
     const [stats,        setStats]        = useState(null);
     const [assets,       setAssets]       = useState([]);
     const [totalCount,   setTotalCount]   = useState(0);
@@ -282,10 +291,15 @@ function Assets() {
 
     const PAGE_SIZE = 10;
     const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+    const departmentFilter = searchParams.get("department") || "";
+    const departmentName = searchParams.get("departmentName") || "";
+    const shouldOpenCreate = searchParams.get("create") === "1";
 
     const loadAssets = async (pg = 1) => {
         try {
-            const res = await api.get(`assets/?page=${pg}`);
+            const params = { page: pg };
+            if (departmentFilter) params.department = departmentFilter;
+            const res = await api.get("assets/", { params });
             setAssets(res.data.results);
             setTotalCount(res.data.count);
         } catch (err) {
@@ -310,7 +324,11 @@ function Assets() {
             setLoading(false);
         };
         load();
-    }, []);
+    }, [departmentFilter]);
+
+    useEffect(() => {
+        if (shouldOpenCreate && isAdmin) setShowModal(true);
+    }, [shouldOpenCreate, isAdmin]);
 
     const handlePage = async (pg) => {
         if (pg < 1 || pg > totalPages) return;
@@ -338,6 +356,11 @@ function Assets() {
 
     const start = (page - 1) * PAGE_SIZE + 1;
     const end   = Math.min(page * PAGE_SIZE, totalCount);
+    const inventoryPills = useMemo(() => ([
+        departmentName ? `Department: ${departmentName}` : "Department: All",
+        "Category: All",
+        "Status: All",
+    ]), [departmentName]);
 
     return (
         <div className="assets-page">
@@ -347,15 +370,19 @@ function Assets() {
                 <div>
                     <h1 className="assets-title">Assets</h1>
                     <p className="assets-subtitle">
-                        Manage all organizational IT assets, assignments and inventory.
+                        {departmentName
+                            ? `Manage IT assets assigned to ${departmentName}.`
+                            : "Manage all organizational IT assets, assignments and inventory."}
                     </p>
                 </div>
                 <div className="assets-header-btns">
                     <button className="btn-outline"><FiFilter size={13} /> Filter</button>
-                    <button className="btn-outline"><FiDownload size={13} /> Export</button>
-                    <button className="btn-primary" onClick={() => setShowModal(true)}>
-                        <FiPlus size={13} /> Add Asset
-                    </button>
+                    {isAdmin && <button className="btn-outline"><FiDownload size={13} /> Export</button>}
+                    {isAdmin && (
+                        <button className="btn-primary" onClick={() => setShowModal(true)}>
+                            <FiPlus size={13} /> Add Asset
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -385,8 +412,9 @@ function Assets() {
                         <div className="inv-top">
                             <h2 className="a-card-title">Asset Inventory</h2>
                             <div className="inv-pills">
-                                <span className="filter-pill">Category: All</span>
-                                <span className="filter-pill">Status: All</span>
+                                {inventoryPills.map((pill) => (
+                                    <span key={pill} className="filter-pill">{pill}</span>
+                                ))}
                             </div>
                         </div>
 
@@ -427,7 +455,21 @@ function Assets() {
                                                 {a.asset_name}
                                             </td>
                                             <td>{a.category_display}</td>
-                                            <td>{a.assigned_to_name ?? "—"}</td>
+                                            <td>
+                                                {a.assigned_to_name ?? "—"}
+                                                {!isAdmin && a.assigned_to === myUserId && (
+                                                    <span style={{
+                                                        marginLeft: "6px",
+                                                        fontSize: "10px",
+                                                        fontWeight: 600,
+                                                        background: "#eff6ff",
+                                                        color: "#2563eb",
+                                                        padding: "2px 6px",
+                                                        borderRadius: "4px",
+                                                        verticalAlign: "middle",
+                                                    }}>You</span>
+                                                )}
+                                            </td>
                                             <td className="col-date">{fmtDate(a.purchase_date)}</td>
                                             <td><StatusBadge status={a.status_display} /></td>
                                         </tr>
@@ -494,18 +536,20 @@ function Assets() {
                 {/* ── Right Sidebar ── */}
                 <aside className="assets-sidebar">
 
-                    {/* Quick Actions */}
-                    <div className="a-card">
-                        <h2 className="a-card-title sidebar-section-title">QUICK ACTIONS</h2>
-                        <div className="qa-grid">
-                            {quickActions.map(({ Icon, label }) => (
-                                <button key={label} className="qa-tile">
-                                    <Icon className="qa-tile-icon" size={20} />
-                                    <span>{label}</span>
-                                </button>
-                            ))}
+                    {/* Quick Actions — admin only */}
+                    {isAdmin && (
+                        <div className="a-card">
+                            <h2 className="a-card-title sidebar-section-title">QUICK ACTIONS</h2>
+                            <div className="qa-grid">
+                                {quickActions.map(({ Icon, label }) => (
+                                    <button key={label} className="qa-tile">
+                                        <Icon className="qa-tile-icon" size={20} />
+                                        <span>{label}</span>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Asset Distribution */}
                     <div className="a-card">
@@ -571,6 +615,7 @@ function Assets() {
             {/* ── Add Asset Modal ── */}
             {showModal && (
                 <AddAssetModal
+                    defaultDepartment={departmentFilter}
                     onClose={() => setShowModal(false)}
                     onSuccess={() => {
                         setShowModal(false);

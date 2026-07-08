@@ -5,7 +5,7 @@ from django.db.models import Count
 
 from .models import Asset
 from .serializers import AssetSerializer
-from dashboard.permissions import IsCompanyAdmin
+from dashboard.permissions import IsCompanyAdmin, IsCompanyMember
 
 PAGE_SIZE = 10
 
@@ -20,7 +20,7 @@ _CATEGORY_COLORS = {
 
 
 class AssetStatsView(APIView):
-    permission_classes = [IsCompanyAdmin]
+    permission_classes = [IsCompanyMember]
 
     def get(self, request):
         qs = Asset.objects.filter(company=request.user.company)
@@ -33,7 +33,7 @@ class AssetStatsView(APIView):
 
 
 class AssetDistributionView(APIView):
-    permission_classes = [IsCompanyAdmin]
+    permission_classes = [IsCompanyMember]
 
     def get(self, request):
         qs = (
@@ -56,7 +56,7 @@ class AssetDistributionView(APIView):
 
 
 class AssetListCreateView(APIView):
-    permission_classes = [IsCompanyAdmin]
+    permission_classes = [IsCompanyMember]
 
     def get(self, request):
         qs = (
@@ -67,9 +67,12 @@ class AssetListCreateView(APIView):
         )
 
         category      = request.query_params.get('category')
+        department    = request.query_params.get('department')
         status_filter = request.query_params.get('status')
         if category:
             qs = qs.filter(category=category)
+        if department:
+            qs = qs.filter(department_id=department)
         if status_filter:
             qs = qs.filter(status=status_filter)
 
@@ -85,6 +88,8 @@ class AssetListCreateView(APIView):
         })
 
     def post(self, request):
+        if getattr(request.user, 'role', '') != 'admin':
+            return Response({'detail': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
         serializer = AssetSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(company=request.user.company)
@@ -93,7 +98,7 @@ class AssetListCreateView(APIView):
 
 
 class AssetDetailView(APIView):
-    permission_classes = [IsCompanyAdmin]
+    permission_classes = [IsCompanyMember]
 
     def _get(self, pk, company):
         try:
@@ -108,6 +113,8 @@ class AssetDetailView(APIView):
         return Response(AssetSerializer(asset).data)
 
     def patch(self, request, pk):
+        if getattr(request.user, 'role', '') != 'admin':
+            return Response({'detail': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
         asset = self._get(pk, request.user.company)
         if not asset:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -118,6 +125,8 @@ class AssetDetailView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
+        if getattr(request.user, 'role', '') != 'admin':
+            return Response({'detail': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
         asset = self._get(pk, request.user.company)
         if not asset:
             return Response(status=status.HTTP_404_NOT_FOUND)

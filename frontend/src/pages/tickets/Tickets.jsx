@@ -265,6 +265,8 @@ function FilePreviewOverlay({ entry, onClose }) {
 }
 
 function NewTicketModal({ onClose, onCreated }) {
+    const role = localStorage.getItem("role") || "employee";
+    const isEmployee = role === "employee";
     const [form,        setForm]        = useState(EMPTY_FORM);
     const [users,       setUsers]       = useState([]);
     const [departments, setDepartments] = useState([]);
@@ -276,12 +278,15 @@ function NewTicketModal({ onClose, onCreated }) {
     const fileInputRef = useRef(null);
 
     useEffect(() => {
-        Promise.all([
-            api.get("accounts/users/?page_size=200"),
-            api.get("accounts/departments/?page_size=200"),
-        ]).then(([u, d]) => {
-            setUsers(u.data.results ?? []);
-            setDepartments(d.data.results ?? []);
+        const calls = [api.get("accounts/departments/?page_size=200")];
+        if (!isEmployee) calls.unshift(api.get("accounts/users/?page_size=200"));
+        Promise.all(calls).then((results) => {
+            if (!isEmployee) {
+                setUsers(results[0].data.results ?? []);
+                setDepartments(results[1].data.results ?? []);
+            } else {
+                setDepartments(results[0].data.results ?? []);
+            }
         }).catch(() => {});
     }, []);
 
@@ -465,23 +470,25 @@ function NewTicketModal({ onClose, onCreated }) {
                             </div>
                         </div>
 
-                        <div>
-                            <label className="ntm-label">Assign To</label>
-                            <select
-                                className="ntm-select"
-                                name="assigned_to"
-                                value={form.assigned_to}
-                                onChange={handleChange}
-                            >
-                                <option value="">Unassigned</option>
-                                {users.map(u => (
-                                    <option key={u.id} value={u.id}>
-                                        {u.name || u.username}
-                                        {u.emp_id ? ` (${u.emp_id})` : ""}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        {!isEmployee && (
+                            <div>
+                                <label className="ntm-label">Assign To</label>
+                                <select
+                                    className="ntm-select"
+                                    name="assigned_to"
+                                    value={form.assigned_to}
+                                    onChange={handleChange}
+                                >
+                                    <option value="">— Unassigned —</option>
+                                    {users.filter(u => u.role === "agent").map(u => (
+                                        <option key={u.id} value={u.id}>
+                                            {u.name || u.username}
+                                            {u.emp_id ? ` (${u.emp_id})` : ""}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
                         {/* ── Attachments ── */}
                         <div>

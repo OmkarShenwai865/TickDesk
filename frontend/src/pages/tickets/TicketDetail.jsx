@@ -162,6 +162,9 @@ function AssignModal({ currentAssignee, onClose, onSave }) {
         api.get("accounts/users/?page_size=200").then(r => setUsers(r.data.results)).catch(() => {});
     }, []);
 
+    const agents = users.filter(u => u.role === "agent");
+    const admins = users.filter(u => u.role === "admin");
+
     const handleSave = async () => {
         setSaving(true);
         await onSave(selected || null);
@@ -180,7 +183,11 @@ function AssignModal({ currentAssignee, onClose, onSave }) {
                         <label className="ndm-label">Assign To</label>
                         <select className="ndm-select" value={selected} onChange={e => setSelected(e.target.value)}>
                             <option value="">— Unassigned —</option>
-                            {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
+                            {users.map(u => (
+                                <option key={u.id} value={u.id}>
+                                    {u.name || `${u.first_name} ${u.last_name}`.trim() || u.username} ({u.role})
+                                </option>
+                            ))}
                         </select>
                     </div>
                 </div>
@@ -343,7 +350,20 @@ function EditModal({ ticket, existingAttachments, onClose, onSaved }) {
                         <label className="ndm-label">Assign To</label>
                         <select className="ndm-select" value={form.assigned_to ?? ""} onChange={set("assigned_to")}>
                             <option value="">— Unassigned —</option>
-                            {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
+                            {users.filter(u => u.role === "agent").length > 0 && (
+                                <optgroup label="Support Agents">
+                                    {users.filter(u => u.role === "agent").map(u =>
+                                        <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                                    )}
+                                </optgroup>
+                            )}
+                            {users.filter(u => u.role === "admin").length > 0 && (
+                                <optgroup label="Escalate to Admin">
+                                    {users.filter(u => u.role === "admin").map(u =>
+                                        <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                                    )}
+                                </optgroup>
+                            )}
                         </select>
                     </div>
 
@@ -443,6 +463,11 @@ function EditModal({ ticket, existingAttachments, onClose, onSaved }) {
 
 function TicketDetail() {
     const { id } = useParams();
+    const role      = localStorage.getItem("role") || "employee";
+    const myUserId  = parseInt(localStorage.getItem("user_id") || "0");
+    const isAdmin   = role === "admin";
+    const isAgent   = role === "agent";
+    const canManage = isAdmin || isAgent;
 
     const [ticket,      setTicket]      = useState(null);
     const [activities,  setActivities]  = useState([]);
@@ -458,7 +483,9 @@ function TicketDetail() {
     const [showEdit,        setShowEdit]        = useState(false);
     const [previewAtt,      setPreviewAtt]      = useState(null);
 
-    const chatEndRef = useRef(null);
+    const chatEndRef   = useRef(null);
+    const pollRef      = useRef(null);
+    const commentCount = useRef(0);
 
     const load = async () => {
         try {
@@ -472,13 +499,58 @@ function TicketDetail() {
             setActivities(actRes.data);
             setAttachments(attRes.data);
             setComments(comRes.data);
+            commentCount.current = comRes.data.length;
         } catch (err) {
             if (err.response?.status === 404) setNotFound(true);
             else console.error("Ticket detail load error:", err);
         }
     };
 
+    // Poll only for new comments — lightweight, skips if tab is hidden
+    const pollComments = useCallback(async () => {
+        if (document.visibilityState !== "visible") return;
+        try {
+            const res = await api.get(`tickets/${id}/comments/`);
+            if (res.data.length !== commentCount.current) {
+                commentCount.current = res.data.length;
+                setComments(res.data);
+            }
+        } catch (_) {}
+    }, [id]);
+
+    const startPolling = useCallback(() => {
+        if (pollRef.current) return;
+        pollRef.current = setInterval(pollComments, 5000);
+    }, [pollComments]);
+
+    const stopPolling = useCallback(() => {
+        if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+        }
+    }, []);
+
     useEffect(() => { load(); }, [id]);
+
+    // Start/stop polling based on tab visibility
+    useEffect(() => {
+        startPolling();
+
+        const handleVisibility = () => {
+            if (document.visibilityState === "visible") {
+                pollComments(); // fetch immediately on tab focus
+                startPolling();
+            } else {
+                stopPolling();
+            }
+        };
+
+        document.addEventListener("visibilitychange", handleVisibility);
+        return () => {
+            stopPolling();
+            document.removeEventListener("visibilitychange", handleVisibility);
+        };
+    }, [startPolling, stopPolling, pollComments]);
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -598,22 +670,24 @@ function TicketDetail() {
                     </p>
                 </div>
 
-                <div className="ticket-header-actions">
-                    <button className="th-btn th-btn-outline" onClick={() => setShowAssign(true)}>
-                        <FiUserPlus size={14} /> Assign
-                    </button>
-                    <button className="th-btn th-btn-outline" onClick={() => setShowEdit(true)}>
-                        <FiEdit2 size={14} /> Edit
-                    </button>
-                    <button
-                        className={`th-btn ${isResolved ? "th-btn-outline" : "th-btn-resolve"}`}
-                        onClick={handleResolve}
-                        disabled={isResolved || resolving}
-                    >
-                        <FiCheckCircle size={14} />
-                        {resolving ? "Resolving…" : isResolved ? "Resolved" : "Resolve"}
-                    </button>
-                </div>
+                {canManage && (
+                    <div className="ticket-header-actions">
+                        <button className="th-btn th-btn-outline" onClick={() => setShowAssign(true)}>
+                            <FiUserPlus size={14} /> Assign
+                        </button>
+                        <button className="th-btn th-btn-outline" onClick={() => setShowEdit(true)}>
+                            <FiEdit2 size={14} /> Edit
+                        </button>
+                        <button
+                            className={`th-btn ${isResolved ? "th-btn-outline" : "th-btn-resolve"}`}
+                            onClick={handleResolve}
+                            disabled={isResolved || resolving}
+                        >
+                            <FiCheckCircle size={14} />
+                            {resolving ? "Resolving…" : isResolved ? "Resolved" : "Resolve"}
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* ── Content ── */}
@@ -684,41 +758,70 @@ function TicketDetail() {
                                 <p>{ticket.description || "No description provided."}</p>
                             </div>
                         </div>
+
+                        <hr className="t-divider" />
+                        <p className="tf-label" style={{ marginBottom: "10px" }}>PARTICIPANTS</p>
+                        <div className="participants-list">
+                            <div className="participant-item">
+                                <div className="p-avatar p-avatar-gray">
+                                    {reqInitials}
+                                    <span className="p-online-dot" />
+                                </div>
+                                <div className="p-info">
+                                    <p className="p-name">{requesterName}</p>
+                                    <p className="p-role">Requester</p>
+                                </div>
+                            </div>
+                            {assigneeName !== "Unassigned" && (
+                                <div className="participant-item">
+                                    <div className="p-avatar p-avatar-blue">
+                                        {asnInitials}
+                                        <span className="p-online-dot" />
+                                    </div>
+                                    <div className="p-info">
+                                        <p className="p-name">{assigneeName}</p>
+                                        <p className="p-role">Assigned Agent</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {/* Activity + Attachments */}
                     <div className="ticket-bottom-grid">
 
-                        {/* Activity Logs */}
-                        <div className="t-card">
-                            <div className="t-card-heading">
-                                <FiRefreshCcw className="t-heading-icon" />
-                                <h2>Activity Logs</h2>
-                            </div>
-                            <hr className="t-divider" />
-                            <div className="activity-log-list">
-                                {activities.length === 0 ? (
-                                    <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>No activity yet.</p>
-                                ) : activities.map((log, i) => {
-                                    const { Icon, color } = activityIcon(log.action);
-                                    return (
-                                        <div key={log.id} className="log-item">
-                                            <div className="log-icon-col">
-                                                <Icon size={15} style={{ color }} className="log-icon" />
-                                                {i < activities.length - 1 && <span className="log-line" />}
+                        {/* Activity Logs — visible to all roles */}
+                        {true && (
+                            <div className="t-card">
+                                <div className="t-card-heading">
+                                    <FiRefreshCcw className="t-heading-icon" />
+                                    <h2>Activity Logs</h2>
+                                </div>
+                                <hr className="t-divider" />
+                                <div className="activity-log-list">
+                                    {activities.length === 0 ? (
+                                        <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>No activity yet.</p>
+                                    ) : activities.map((log, i) => {
+                                        const { Icon, color } = activityIcon(log.action);
+                                        return (
+                                            <div key={log.id} className="log-item">
+                                                <div className="log-icon-col">
+                                                    <Icon size={15} style={{ color }} className="log-icon" />
+                                                    {i < activities.length - 1 && <span className="log-line" />}
+                                                </div>
+                                                <div className="log-body">
+                                                    <p className="log-text">
+                                                        <strong>{log.action}</strong>
+                                                        {log.actor_name && <> by <span className="log-highlight-blue">{log.actor_name}</span></>}
+                                                    </p>
+                                                    <p className="log-time">{fmtTime(log.created_at)}</p>
+                                                </div>
                                             </div>
-                                            <div className="log-body">
-                                                <p className="log-text">
-                                                    <strong>{log.action}</strong>
-                                                    {log.actor_name && <> by <span className="log-highlight-blue">{log.actor_name}</span></>}
-                                                </p>
-                                                <p className="log-time">{fmtTime(log.created_at)}</p>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* Attachments */}
                         <div className="t-card">
@@ -768,55 +871,28 @@ function TicketDetail() {
 
                     </div>
 
-                    {/* Internal Notes (static — agents only) */}
-                    <div className="t-card">
-                        <div className="notes-header-row">
-                            <div className="t-card-heading" style={{ marginBottom: 0 }}>
-                                <FiClock className="t-heading-icon notes-icon" />
-                                <h2>Internal Notes</h2>
+                    {/* Internal Notes — agents & admins only */}
+                    {canManage && (
+                        <div className="t-card">
+                            <div className="notes-header-row">
+                                <div className="t-card-heading" style={{ marginBottom: 0 }}>
+                                    <FiClock className="t-heading-icon notes-icon" />
+                                    <h2>Internal Notes</h2>
+                                </div>
+                                <span className="visibility-badge">Agents Only</span>
                             </div>
-                            <span className="visibility-badge">Agents Only</span>
+                            <textarea
+                                className="notes-textarea"
+                                placeholder="Add a private note for other support agents..."
+                                rows={4}
+                            />
                         </div>
-                        <textarea
-                            className="notes-textarea"
-                            placeholder="Add a private note for other support agents..."
-                            rows={4}
-                        />
-                    </div>
+                    )}
 
                 </div>
 
                 {/* ── Right Sidebar ── */}
                 <aside className="ticket-right">
-
-                    {/* Participants */}
-                    <div className="t-card">
-                        <p className="sidebar-section-label">PARTICIPANTS</p>
-                        <div className="participants-list">
-                            <div className="participant-item">
-                                <div className="p-avatar p-avatar-gray">
-                                    {reqInitials}
-                                    <span className="p-online-dot" />
-                                </div>
-                                <div className="p-info">
-                                    <p className="p-name">{requesterName}</p>
-                                    <p className="p-role">Requester</p>
-                                </div>
-                            </div>
-                            {assigneeName !== "Unassigned" && (
-                                <div className="participant-item">
-                                    <div className="p-avatar p-avatar-blue">
-                                        {asnInitials}
-                                        <span className="p-online-dot" />
-                                    </div>
-                                    <div className="p-info">
-                                        <p className="p-name">{assigneeName}</p>
-                                        <p className="p-role">Assigned Agent</p>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
 
                     {/* Live Conversation (Comments) */}
                     <div className="t-card chat-card">
@@ -831,9 +907,9 @@ function TicketDetail() {
                                 <p style={{ color: "#94a3b8", fontSize: "0.82rem", textAlign: "center", padding: "12px 0" }}>
                                     No messages yet. Start the conversation.
                                 </p>
-                            ) : comments.map((msg, i) => {
-                                const isMe = msg.author_initials !== "?" && i % 2 === 0; // simple alternating for now
-                                const type = i % 2 === 0 ? "sent" : "received";
+                            ) : comments.map((msg) => {
+                                const isMine = msg.author === myUserId;
+                                const type   = isMine ? "sent" : "received";
                                 return (
                                     <div key={msg.id} className={`chat-msg ${type}`}>
                                         <div className={`chat-bubble ${type}-bubble`}>{msg.text}</div>

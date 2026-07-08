@@ -784,3 +784,21 @@
 }
 .ndm-btn-submit:hover:not(:disabled) { background: #1d4ed8; transform: translateY(-1px); }
 .ndm-btn-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+/* ── Assign Assets row ───────────────────────────────────────────────────── */
+.dep-asset-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1.5px solid #f3f4f6;
+  border-radius: 10px;
+  background: #fafafa;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  user-select: none;
+}
+.dep-asset-row:hover { border-color: #bfdbfe; background: #eff6ff; }
+.dep-asset-row-checked { border-color: #2563eb; background: #eff6ff; }
+.dep-asset-row-other { opacity: 0.5; cursor: not-allowed; }
+.dep-asset-row input[type="checkbox"] { accent-color: #2563eb; width: 15px; height: 15px; flex-shrink: 0; }

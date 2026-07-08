@@ -68,6 +68,7 @@ function Navbar() {
     const handleLogout = () => {
         localStorage.removeItem("access");
         localStorage.removeItem("refresh");
+        localStorage.removeItem("role");
         navigate("/login");
     };
 
@@ -75,6 +76,7 @@ function Navbar() {
     const displayName = profile ? (profile.first_name || profile.username) : "…";
     const roleLabel   = profile ? (profile.role.charAt(0).toUpperCase() + profile.role.slice(1)) : "";
     const fullName    = profile ? `${profile.first_name} ${profile.last_name}`.trim() : "";
+    const canOpenSettings = profile?.role === "admin";
 
     return (
         <header className="navbar">
@@ -148,10 +150,12 @@ function Navbar() {
 
                             {/* Actions */}
                             <div className="pd-actions">
-                                <button className="pd-action-btn" onClick={() => { navigate("/settings"); setOpen(false); }}>
-                                    <FiSettings size={14} />
-                                    Settings
-                                </button>
+                                {canOpenSettings && (
+                                    <button className="pd-action-btn" onClick={() => { navigate("/settings"); setOpen(false); }}>
+                                        <FiSettings size={14} />
+                                        Settings
+                                    </button>
+                                )}
                                 <button className="pd-action-btn pd-logout-btn" onClick={handleLogout}>
                                     <FiLogOut size={14} />
                                     Logout

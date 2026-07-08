@@ -66,6 +66,8 @@ function initials(name) {
 export default function AssetDetail() {
     const { id }       = useParams();
     const navigate     = useNavigate();
+    const isAdmin      = localStorage.getItem("role") === "admin";
+    const myUserId     = parseInt(localStorage.getItem("user_id") || "0");
     const [asset,     setAsset]    = useState(null);
     const [notFound,  setNotFound] = useState(false);
 
@@ -90,6 +92,7 @@ export default function AssetDetail() {
     const sc  = STATUS_CONFIG[asset.status] ?? STATUS_CONFIG.available;
     const cat = CAT_ICONS[asset.category]   ?? { Icon: FiHardDrive, color: "#6b7280" };
     const { Icon: CatIcon, color: catColor } = cat;
+    const isMyAsset = !isAdmin && !!myUserId && asset.assigned_to === myUserId;
 
     return (
         <div className="adet-page">
@@ -106,6 +109,11 @@ export default function AssetDetail() {
                         <span className="adet-badge adet-cat-badge" style={{ background: catColor + "18", color: catColor }}>
                             <CatIcon size={11} /> {asset.category_display.toUpperCase()}
                         </span>
+                        {isMyAsset && (
+                            <span className="adet-badge" style={{ background: "#f0fdf4", color: "#16a34a", fontWeight: 700 }}>
+                                YOUR ASSET
+                            </span>
+                        )}
                     </div>
                     <p className="adet-subtitle">
                         Added {fmtDate(asset.created_at)}
@@ -115,24 +123,26 @@ export default function AssetDetail() {
                     </p>
                 </div>
 
-                <div className="adet-header-actions">
-                    <button className="adet-btn adet-btn-outline">
-                        <FiUserPlus size={13} /> Assign
-                    </button>
-                    <button className="adet-btn adet-btn-outline">
-                        <FiEdit2 size={13} /> Edit
-                    </button>
-                    {asset.status !== "retired" && (
-                        <button className="adet-btn adet-btn-danger">
-                            <FiAlertTriangle size={13} /> Retire
+                {isAdmin && (
+                    <div className="adet-header-actions">
+                        <button className="adet-btn adet-btn-outline">
+                            <FiUserPlus size={13} /> Assign
                         </button>
-                    )}
-                    {asset.status !== "available" && asset.status !== "retired" && (
-                        <button className="adet-btn adet-btn-green">
-                            <FiCheckCircle size={13} /> Mark Available
+                        <button className="adet-btn adet-btn-outline">
+                            <FiEdit2 size={13} /> Edit
                         </button>
-                    )}
-                </div>
+                        {asset.status !== "retired" && (
+                            <button className="adet-btn adet-btn-danger">
+                                <FiAlertTriangle size={13} /> Retire
+                            </button>
+                        )}
+                        {asset.status !== "available" && asset.status !== "retired" && (
+                            <button className="adet-btn adet-btn-green">
+                                <FiCheckCircle size={13} /> Mark Available
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* ── Content ── */}
@@ -218,16 +228,20 @@ export default function AssetDetail() {
                                         <p className="adet-assignee-meta adet-mono">{asset.assigned_to_emp_id}</p>
                                     )}
                                 </div>
-                                <span className="adet-assignee-badge">Currently Assigned</span>
+                                <span className="adet-assignee-badge" style={isMyAsset ? { background: "#f0fdf4", color: "#16a34a" } : {}}>
+                                    {isMyAsset ? "Assigned to You" : "Currently Assigned"}
+                                </span>
                             </div>
                         ) : (
                             <div className="adet-unassigned">
                                 <FiPackage size={32} className="adet-unassigned-icon" />
                                 <p className="adet-unassigned-title">Not Assigned</p>
                                 <p className="adet-unassigned-sub">This asset is currently available in inventory.</p>
-                                <button className="adet-btn adet-btn-outline" style={{ marginTop: "12px" }}>
-                                    <FiUserPlus size={13} /> Assign to User
-                                </button>
+                                {isAdmin && (
+                                    <button className="adet-btn adet-btn-outline" style={{ marginTop: "12px" }}>
+                                        <FiUserPlus size={13} /> Assign to User
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -315,22 +329,28 @@ export default function AssetDetail() {
                     <div className="adet-card">
                         <p className="adet-sidebar-label">QUICK ACTIONS</p>
                         <div className="adet-qa-list">
-                            <button className="adet-qa-btn">
-                                <FiUserPlus size={15} color="#2563eb" />
-                                <span>Assign to User</span>
-                            </button>
-                            <button className="adet-qa-btn">
-                                <FiEdit2 size={15} color="#7c3aed" />
-                                <span>Edit Asset Details</span>
-                            </button>
+                            {isAdmin && (
+                                <>
+                                    <button className="adet-qa-btn">
+                                        <FiUserPlus size={15} color="#2563eb" />
+                                        <span>Assign to User</span>
+                                    </button>
+                                    <button className="adet-qa-btn">
+                                        <FiEdit2 size={15} color="#7c3aed" />
+                                        <span>Edit Asset Details</span>
+                                    </button>
+                                </>
+                            )}
                             <button className="adet-qa-btn">
                                 <FiAlertTriangle size={15} color="#ea580c" />
                                 <span>Report Issue</span>
                             </button>
-                            <button className="adet-qa-btn">
-                                <FiAlertTriangle size={15} color="#9ca3af" />
-                                <span>Mark as Retired</span>
-                            </button>
+                            {isAdmin && (
+                                <button className="adet-qa-btn">
+                                    <FiAlertTriangle size={15} color="#9ca3af" />
+                                    <span>Mark as Retired</span>
+                                </button>
+                            )}
                         </div>
                     </div>
 

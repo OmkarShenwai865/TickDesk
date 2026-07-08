@@ -1,0 +1,274 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body { font-family: "Inter", Arial, sans-serif; background: #f4f7fb; }
+
+/* ── Page wrapper — scrollable ── */
+.rg-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 16px;
+    background: #f4f7fb;
+}
+
+/* ── Card ── */
+.rg-card {
+    width: 100%;
+    max-width: 480px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(15, 23, 42, 0.1);
+    overflow: hidden;
+}
+
+/* ── Card header (blue stripe) ── */
+.rg-card-header {
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    padding: 28px 32px 24px;
+    text-align: center;
+}
+
+.rg-logo-wrap {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 14px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.rg-logo-img {
+    width: 46px;
+    height: 46px;
+    object-fit: contain;
+}
+
+.rg-logo {
+    font-size: 26px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.5px;
+}
+
+.rg-logo-sub {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.75);
+    margin-top: 4px;
+}
+
+/* ── Card body ── */
+.rg-card-body {
+    padding: 28px 32px 24px;
+}
+
+.rg-section-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rg-section-title::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #e8ecf0;
+}
+
+/* ── Error banner ── */
+.rg-err-banner {
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #b91c1c;
+    margin-bottom: 16px;
+}
+
+/* ── Field ── */
+.rg-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.rg-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.rg-required { color: #ef4444; }
+
+.rg-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 9px;
+    font-size: 14px;
+    color: #0f172a;
+    outline: none;
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.rg-input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.rg-field-err {
+    font-size: 12px;
+    color: #ef4444;
+}
+
+/* ── Two-column row ── */
+.rg-row-2 {
+    display: flex;
+    gap: 14px;
+}
+
+.rg-row-2 .rg-field { flex: 1; }
+
+/* ── Password field ── */
+.rg-pw-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.rg-pw-wrap .rg-input { padding-right: 44px; }
+
+.rg-pw-toggle {
+    position: absolute;
+    right: 14px;
+    color: #9ca3af;
+    cursor: pointer;
+    font-size: 17px;
+    display: flex;
+    align-items: center;
+}
+
+.rg-pw-toggle:hover { color: #2563eb; }
+
+/* ── Divider ── */
+.rg-divider {
+    height: 1px;
+    background: #f1f5f9;
+    margin: 4px 0 20px;
+}
+
+.rg-invite-box {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 8px 12px;
+    padding: 13px 14px;
+    margin-bottom: 16px;
+    background: #f8fafc;
+    border: 1px solid #e8ecf0;
+    border-radius: 10px;
+    font-size: 13px;
+}
+
+.rg-invite-box span {
+    color: #64748b;
+}
+
+.rg-invite-box strong {
+    color: #0f172a;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+/* ── Submit button ── */
+.rg-submit-btn {
+    width: 100%;
+    padding: 12px;
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-top: 4px;
+}
+
+.rg-submit-btn:hover:not(:disabled) { background: #1d4ed8; }
+.rg-submit-btn:disabled { opacity: 0.6; cursor: default; }
+
+/* ── Footer link ── */
+.rg-card-footer {
+    text-align: center;
+    padding: 16px 32px 24px;
+    font-size: 13.5px;
+    color: #6b7280;
+    border-top: 1px solid #f1f5f9;
+}
+
+.rg-footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px 14px;
+    margin-bottom: 10px;
+}
+
+.rg-footer-copy {
+    margin: 0;
+}
+
+.rg-link {
+    color: #2563eb;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.rg-link:hover { text-decoration: underline; }
+
+/* ── Success state ── */
+.rg-success {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 40px 32px;
+    text-align: center;
+}
+
+.rg-success-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #d1fae5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rg-success-title { font-size: 18px; font-weight: 700; color: #0f172a; }
+.rg-success-sub   { font-size: 13.5px; color: #6b7280; }
+
+@media (max-width: 560px) {
+    .rg-card-body,
+    .rg-card-header,
+    .rg-card-footer {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+
+    .rg-row-2 {
+        flex-direction: column;
+        gap: 0;
+    }
+}

@@ -5,7 +5,7 @@ from django.db.models import Count, Q
 
 from .models import Department, User
 from .serializers import DepartmentListSerializer, DepartmentDetailSerializer
-from dashboard.permissions import IsCompanyAdmin
+from dashboard.permissions import IsCompanyAdmin, IsCompanyMember
 from tickets.models import Ticket
 
 PAGE_SIZE = 10
@@ -111,7 +111,7 @@ class DepartmentTopPerformingView(APIView):
 
 
 class DepartmentListCreateView(APIView):
-    permission_classes = [IsCompanyAdmin]
+    permission_classes = [IsCompanyMember]
 
     def get(self, request):
         qs     = _dept_qs(request.user.company).order_by('name')
@@ -132,6 +132,8 @@ class DepartmentListCreateView(APIView):
         })
 
     def post(self, request):
+        if getattr(request.user, 'role', '') != 'admin':
+            return Response({'detail': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
         serializer = DepartmentListSerializer(data=request.data)
         if serializer.is_valid():
             dept = serializer.save(company=request.user.company)

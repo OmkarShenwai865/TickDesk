@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
+from django.contrib.auth.models import update_last_login
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -25,6 +26,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         data = super().validate(attrs)
         user = self.user
+        update_last_login(None, user)
         data['user'] = {
             'id':       user.id,
             'username': user.username,

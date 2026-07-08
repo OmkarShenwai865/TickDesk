@@ -1,6 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import Login from "./pages/auth/Login";
+import Login          from "./pages/auth/Login";
+import Register       from "./pages/auth/Register";
+import AcceptInvite   from "./pages/auth/AcceptInvite";
+import Landing        from "./pages/landing/Landing";
 import Dashboard from "./pages/dashboard/Dashboard";
 import Assets from "./pages/assets/Assets";
 import AssetDetail from "./pages/assets/AssetDetail";
@@ -25,10 +28,14 @@ function App() {
         <BrowserRouter>
             <Routes>
                 {/* Public Routes */}
-                <Route path="/"      element={<Login />} />
-                <Route path="/login" element={<Login />} />
+                <Route path="/"         element={<Landing />} />
+                <Route path="/login"    element={<Login />} />
+                <Route path="/employee-login" element={<Login expectedRole="employee" title="Employee Login" />} />
+                <Route path="/support-agent-login" element={<Login expectedRole="agent" title="Support Agent Login" />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/accept-invite/:token" element={<AcceptInvite />} />
 
-                {/* Protected Routes */}
+                {/* Shared App Routes */}
                 <Route
                     element={
                         <ProtectedRoute>
@@ -36,16 +43,16 @@ function App() {
                         </ProtectedRoute>
                     }
                 >
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/assets" element={<Assets />} />
-                    <Route path="/assets/:id" element={<AssetDetail />} />
-                    <Route path="/tickets" element={<Tickets />} />
-                    <Route path="/tickets/:id" element={<TicketDetail />} />
-                    <Route path="/users" element={<Users />} />
-                    <Route path="/departments" element={<Departments />} />
-                    <Route path="/reports" element={<Reports />} />
+                    <Route path="/dashboard"    element={<ProtectedRoute roles={["admin"]}><Dashboard /></ProtectedRoute>} />
+                    <Route path="/assets"       element={<ProtectedRoute roles={["admin","agent"]}><Assets /></ProtectedRoute>} />
+                    <Route path="/assets/:id"   element={<ProtectedRoute roles={["admin","agent"]}><AssetDetail /></ProtectedRoute>} />
+                    <Route path="/tickets"      element={<Tickets />} />
+                    <Route path="/tickets/:id"  element={<TicketDetail />} />
+                    <Route path="/users"        element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
+                    <Route path="/departments"  element={<ProtectedRoute roles={["admin"]}><Departments /></ProtectedRoute>} />
+                    <Route path="/reports"      element={<ProtectedRoute roles={["admin"]}><Reports /></ProtectedRoute>} />
                     <Route path="/knowledge-base" element={<KnowledgeBase />} />
-                    <Route path="/settings" element={<Settings />}>
+                    <Route path="/settings"     element={<ProtectedRoute roles={["admin"]}><Settings /></ProtectedRoute>}>
                       <Route index              element={<Navigate to="/settings/general" replace />} />
                       <Route path="general"         element={<General />} />
                       <Route path="access-security" element={<AccessSecurity />} />

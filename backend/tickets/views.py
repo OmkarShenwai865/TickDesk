@@ -1,16 +1,68 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.db.models import Count
+from django.db.models import Count, Q
+from django.utils import timezone
+from datetime import timedelta
 
 from .models import Ticket, TicketAttachment, TicketComment, TicketActivity
 from .serializers import (
     TicketSerializer, TicketAttachmentSerializer,
     TicketCommentSerializer, TicketActivitySerializer,
 )
-from dashboard.permissions import IsCompanyAdmin
+from dashboard.permissions import IsCompanyAdmin, IsCompanyMember, IsAgentOrAdmin
 
 PAGE_SIZE = 10
+
+
+# ─── Auto-assignment: least-loaded agent, round-robin on ties ─────────────────
+
+def get_auto_assignee(company):
+    """
+    Pick the agent with the fewest open/in-progress tickets.
+    On a tie, rotate by looking at who was last assigned and picking the next
+    agent in sorted-by-id order.
+    """
+    from accounts.models import User
+
+    agents = list(
+        User.objects
+        .filter(company=company, role='agent', is_active=True)
+        .annotate(
+            open_count=Count(
+                'assigned_tickets',
+                filter=Q(assigned_tickets__status__in=['open', 'in_progress'])
+            )
+        )
+        .order_by('open_count', 'id')
+    )
+
+    if not agents:
+        return None
+
+    min_load = agents[0].open_count
+    tied = [a for a in agents if a.open_count == min_load]
+
+    if len(tied) == 1:
+        return tied[0]
+
+    # Round-robin among tied agents based on last assignment
+    last_ticket = (
+        Ticket.objects
+        .filter(company=company, assigned_to__in=tied)
+        .order_by('-created_at')
+        .first()
+    )
+
+    if not last_ticket or not last_ticket.assigned_to_id:
+        return tied[0]
+
+    ids = [a.id for a in tied]
+    try:
+        idx = ids.index(last_ticket.assigned_to_id)
+        return tied[(idx + 1) % len(tied)]
+    except ValueError:
+        return tied[0]
 
 _PRIORITY_COLORS = {
     'low':      '#16a34a',
@@ -20,11 +72,45 @@ _PRIORITY_COLORS = {
 }
 
 
+def _agent_qs(user):
+    from django.db.models import Q
+    return Ticket.objects.filter(
+        company=user.company
+    ).filter(Q(assigned_to=user) | Q(created_by=user))
+
+
+AUTO_CLOSE_DAYS = 2
+
+
+def _auto_close_resolved(company):
+    """Close tickets that have been in 'resolved' for AUTO_CLOSE_DAYS days."""
+    cutoff = timezone.now() - timedelta(days=AUTO_CLOSE_DAYS)
+    stale = Ticket.objects.filter(
+        company=company,
+        status=Ticket.STATUS_RESOLVED,
+        updated_at__lte=cutoff,
+    )
+    for ticket in stale:
+        ticket.status = Ticket.STATUS_CLOSED
+        ticket.save(update_fields=['status', 'updated_at'])
+        TicketActivity.objects.create(
+            ticket=ticket,
+            actor=None,
+            action=f"Auto-closed after {AUTO_CLOSE_DAYS} days in Resolved",
+        )
+
+
 class TicketStatsView(APIView):
-    permission_classes = [IsCompanyAdmin]
+    permission_classes = [IsCompanyMember]
 
     def get(self, request):
-        qs = Ticket.objects.filter(company=request.user.company)
+        role = getattr(request.user, 'role', 'employee')
+        if role == 'admin':
+            qs = Ticket.objects.filter(company=request.user.company)
+        elif role == 'agent':
+            qs = _agent_qs(request.user)
+        else:
+            qs = Ticket.objects.filter(company=request.user.company, created_by=request.user)
         return Response({
             'total':       qs.count(),
             'open':        qs.filter(status=Ticket.STATUS_OPEN).count(),
@@ -35,16 +121,18 @@ class TicketStatsView(APIView):
 
 
 class TicketPriorityDistributionView(APIView):
-    permission_classes = [IsCompanyAdmin]
+    permission_classes = [IsCompanyMember]
 
     def get(self, request):
-        qs = (
-            Ticket.objects
-            .filter(company=request.user.company)
-            .values('priority')
-            .annotate(count=Count('id'))
-        )
-        total = Ticket.objects.filter(company=request.user.company).count()
+        role = getattr(request.user, 'role', 'employee')
+        if role == 'admin':
+            base_qs = Ticket.objects.filter(company=request.user.company)
+        elif role == 'agent':
+            base_qs = _agent_qs(request.user)
+        else:
+            base_qs = Ticket.objects.filter(company=request.user.company, created_by=request.user)
+        qs = base_qs.values('priority').annotate(count=Count('id'))
+        total = base_qs.count()
         order = ['critical', 'high', 'medium', 'low']
         rows  = {row['priority']: row['count'] for row in qs}
 
@@ -60,15 +148,25 @@ class TicketPriorityDistributionView(APIView):
 
 
 class TicketListCreateView(APIView):
-    permission_classes = [IsCompanyAdmin]
+    permission_classes = [IsCompanyMember]
 
     def get(self, request):
+        _auto_close_resolved(request.user.company)
         qs = (
             Ticket.objects
             .filter(company=request.user.company)
             .select_related('created_by', 'assigned_to', 'department')
             .order_by('-created_at')
         )
+
+        # Role-based filtering
+        role = getattr(request.user, 'role', 'employee')
+        if role == 'employee':
+            qs = qs.filter(created_by=request.user)
+        elif role == 'agent':
+            from django.db.models import Q
+            qs = qs.filter(Q(assigned_to=request.user) | Q(created_by=request.user))
+        # admin sees all
 
         status_filter = request.query_params.get('status')
         search        = request.query_params.get('search', '').strip()
@@ -92,18 +190,38 @@ class TicketListCreateView(APIView):
     def post(self, request):
         serializer = TicketSerializer(data=request.data)
         if serializer.is_valid():
-            ticket = serializer.save(company=request.user.company, created_by=request.user)
+            role = getattr(request.user, 'role', 'employee')
+            manual_assignee = request.data.get('assigned_to')
+
+            # Auto-assign when employee creates ticket and hasn't picked an agent
+            auto_agent = None
+            if role == 'employee' and not manual_assignee:
+                auto_agent = get_auto_assignee(request.user.company)
+
+            ticket = serializer.save(
+                company=request.user.company,
+                created_by=request.user,
+                **({"assigned_to": auto_agent} if auto_agent else {}),
+            )
+
             TicketActivity.objects.create(
                 ticket=ticket,
                 actor=request.user,
                 action="Ticket created",
             )
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            if auto_agent:
+                TicketActivity.objects.create(
+                    ticket=ticket,
+                    actor=request.user,
+                    action=f"Auto-assigned to {auto_agent.get_full_name() or auto_agent.username} (round-robin)",
+                )
+
+            return Response(TicketSerializer(ticket).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class TicketDetailView(APIView):
-    permission_classes = [IsCompanyAdmin]
+    permission_classes = [IsCompanyMember]
 
     def _get(self, pk, company):
         try:
@@ -114,6 +232,7 @@ class TicketDetailView(APIView):
             return None
 
     def get(self, request, pk):
+        _auto_close_resolved(request.user.company)
         ticket = self._get(pk, request.user.company)
         if not ticket:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -173,7 +292,7 @@ ALLOWED_EXTENSIONS = {
 
 
 class TicketAttachmentView(APIView):
-    permission_classes = [IsCompanyAdmin]
+    permission_classes = [IsCompanyMember]
 
     def _get_ticket(self, pk, company):
         try:
@@ -253,7 +372,7 @@ class TicketAttachmentDetailView(APIView):
 
 
 class TicketCommentView(APIView):
-    permission_classes = [IsCompanyAdmin]
+    permission_classes = [IsCompanyMember]
 
     def _get_ticket(self, pk, company):
         try:
@@ -276,11 +395,26 @@ class TicketCommentView(APIView):
         if not text:
             return Response({'detail': 'Comment text is required.'}, status=status.HTTP_400_BAD_REQUEST)
         comment = TicketComment.objects.create(ticket=ticket, author=request.user, text=text)
+
+        # Auto → In Progress when the assigned agent replies for the first time
+        if (
+            ticket.status == Ticket.STATUS_OPEN
+            and ticket.assigned_to_id == request.user.id
+            and getattr(request.user, 'role', '') == 'agent'
+        ):
+            ticket.status = Ticket.STATUS_IN_PROGRESS
+            ticket.save(update_fields=['status', 'updated_at'])
+            TicketActivity.objects.create(
+                ticket=ticket,
+                actor=request.user,
+                action="Status changed to In Progress (agent replied)",
+            )
+
         return Response(TicketCommentSerializer(comment).data, status=status.HTTP_201_CREATED)
 
 
 class TicketActivityView(APIView):
-    permission_classes = [IsCompanyAdmin]
+    permission_classes = [IsCompanyMember]
 
     def _get_ticket(self, pk, company):
         try:
@@ -292,5 +426,5 @@ class TicketActivityView(APIView):
         ticket = self._get_ticket(pk, request.user.company)
         if not ticket:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        activities = ticket.activities.select_related('actor').all()
+        activities = ticket.activities.select_related('actor').order_by('created_at')
         return Response(TicketActivitySerializer(activities, many=True).data)

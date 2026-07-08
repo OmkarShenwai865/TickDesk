@@ -1,6 +1,9 @@
 from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.utils import timezone
+from datetime import timedelta
+import secrets
 
 
 class Company(models.Model):
@@ -67,3 +70,59 @@ class Department(models.Model):
 
     def __str__(self):
         return f"{self.name} — {self.company.name}"
+
+
+class UserInvitation(models.Model):
+    STATUS_PENDING = 'pending'
+    STATUS_ACCEPTED = 'accepted'
+    STATUS_EXPIRED = 'expired'
+    STATUS_CANCELLED = 'cancelled'
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_ACCEPTED, 'Accepted'),
+        (STATUS_EXPIRED, 'Expired'),
+        (STATUS_CANCELLED, 'Cancelled'),
+    ]
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='user_invitations')
+    email = models.EmailField()
+    role = models.CharField(max_length=20, choices=User.ROLE_CHOICES, default=User.ROLE_EMPLOYEE)
+    department = models.ForeignKey(
+        Department, on_delete=models.SET_NULL, related_name='user_invitations', null=True, blank=True,
+    )
+    location = models.CharField(max_length=100, blank=True)
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        related_name='sent_user_invitations', null=True, blank=True,
+    )
+    token = models.CharField(max_length=96, unique=True, editable=False)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    expires_at = models.DateTimeField()
+    accepted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        related_name='accepted_user_invitations', null=True, blank=True,
+    )
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['company', 'email', 'status']),
+            models.Index(fields=['token']),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = secrets.token_urlsafe(48)
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(days=7)
+        super().save(*args, **kwargs)
+
+    @property
+    def is_expired(self):
+        return timezone.now() >= self.expires_at
+
+    def __str__(self):
+        return f"{self.email} invitation ({self.status})"

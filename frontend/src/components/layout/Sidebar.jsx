@@ -16,54 +16,25 @@ import {
 import "./Sidebar.css";
 
 const menuItems = [
-    {
-        name: "Dashboard",
-        path: "/dashboard",
-        icon: FiGrid,
-    },
-    {
-        name: "Assets",
-        path: "/assets",
-        icon: FiBox,
-    },
-    {
-        name: "Tickets",
-        path: "/tickets",
-        icon: FiClipboard,
-    },
-    {
-        name: "Users",
-        path: "/users",
-        icon: FiUsers,
-    },
-    {
-        name: "Departments",
-        path: "/departments",
-        icon: FiLayers,
-    },
-    {
-        name: "Reports",
-        path: "/reports",
-        icon: FiBarChart2,
-    },
-    {
-        name: "Knowledge Base",
-        path: "/knowledge-base",
-        icon: FiBookOpen,
-    },
-    {
-        name: "Settings",
-        path: "/settings",
-        icon: FiSettings,
-    },
+    { name: "Dashboard",    path: "/dashboard",    icon: FiGrid,     roles: ["admin"] },
+    { name: "Assets",       path: "/assets",       icon: FiBox,      roles: ["admin", "agent"] },
+    { name: "Tickets",      path: "/tickets",      icon: FiClipboard,roles: ["admin", "agent", "employee"] },
+    { name: "Users",        path: "/users",        icon: FiUsers,    roles: ["admin"] },
+    { name: "Departments",  path: "/departments",  icon: FiLayers,   roles: ["admin"] },
+    { name: "Reports",      path: "/reports",      icon: FiBarChart2,roles: ["admin"] },
+    { name: "Knowledge Base",path: "/knowledge-base",icon: FiBookOpen,roles: ["admin", "agent", "employee"] },
+    { name: "Settings",     path: "/settings",     icon: FiSettings, roles: ["admin"] },
 ];
 
 function Sidebar() {
     const navigate = useNavigate();
+    const role = localStorage.getItem("role") || "employee";
+    const visibleMenuItems = menuItems.filter(item => item.roles.includes(role));
 
     const handleLogout = () => {
         localStorage.removeItem("access");
         localStorage.removeItem("refresh");
+        localStorage.removeItem("role");
         navigate("/");
     };
 
@@ -102,7 +73,7 @@ function Sidebar() {
 
                 <ul className="sidebar-menu">
 
-                    {menuItems.map((item) => {
+                    {visibleMenuItems.map((item) => {
 
                         const Icon = item.icon;
 
