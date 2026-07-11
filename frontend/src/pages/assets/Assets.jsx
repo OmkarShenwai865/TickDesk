@@ -43,13 +43,6 @@ function fmtDate(iso) {
     });
 }
 
-// ─── Static sidebar data (no API yet) ─────────────────────────────────────────
-
-const activities = [
-    { dot: "#2563eb", title: 'MacBook Pro 14" (AST-2024-001)', action: "was assigned to",      target: "Alex Rivera",   sub: "Action performed by Administrator", time: "10 mins ago" },
-    { dot: "#16a34a", title: "Dell Monitor (AST-2023-112)",    action: "was returned by",      target: "Finance Dept.", sub: "Asset marked as 'Available'",       time: "2 hours ago" },
-    { dot: "#ea580c", title: "HP LaserJet Printer",            action: "reported a paper jam failure.", target: "",     sub: "Maintenance ticket #T-9923 created", time: "Yesterday"  },
-];
 
 const warrantyItems = [
     { name: "Precision Workstation", days: 3,  cls: "critical" },
@@ -288,6 +281,9 @@ function Assets() {
     const [distribution, setDistribution] = useState([]);
     const [loading,      setLoading]      = useState(true);
     const [showModal,    setShowModal]    = useState(false);
+    const isEmployee = role === "employee";
+    const [myAssets,     setMyAssets]     = useState(isEmployee || searchParams.get("my_assets") === "1");
+    const [activities,   setActivities]   = useState([]);
 
     const PAGE_SIZE = 10;
     const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -295,10 +291,11 @@ function Assets() {
     const departmentName = searchParams.get("departmentName") || "";
     const shouldOpenCreate = searchParams.get("create") === "1";
 
-    const loadAssets = async (pg = 1) => {
+    const loadAssets = async (pg = 1, mine = myAssets) => {
         try {
             const params = { page: pg };
             if (departmentFilter) params.department = departmentFilter;
+            if (mine) params.my_assets = '1';
             const res = await api.get("assets/", { params });
             setAssets(res.data.results);
             setTotalCount(res.data.count);
@@ -311,12 +308,14 @@ function Assets() {
         const load = async () => {
             setLoading(true);
             try {
-                const [statsRes, distRes] = await Promise.all([
+                const [statsRes, distRes, actRes] = await Promise.all([
                     api.get("assets/stats/"),
                     api.get("assets/distribution/"),
+                    api.get("assets/activity/"),
                 ]);
                 setStats(statsRes.data);
                 setDistribution(distRes.data);
+                setActivities(actRes.data);
             } catch (err) {
                 console.error("Assets init error:", err);
             }
@@ -330,6 +329,13 @@ function Assets() {
         if (shouldOpenCreate && isAdmin) setShowModal(true);
     }, [shouldOpenCreate, isAdmin]);
 
+    const handleMyAssetsToggle = () => {
+        const next = !myAssets;
+        setMyAssets(next);
+        setPage(1);
+        loadAssets(1, next);
+    };
+
     const handlePage = async (pg) => {
         if (pg < 1 || pg > totalPages) return;
         setPage(pg);
@@ -337,12 +343,14 @@ function Assets() {
     };
 
     const refreshAll = async () => {
-        const [statsRes, distRes] = await Promise.all([
+        const [statsRes, distRes, actRes] = await Promise.all([
             api.get("assets/stats/"),
             api.get("assets/distribution/"),
+            api.get("assets/activity/"),
         ]);
         setStats(statsRes.data);
         setDistribution(distRes.data);
+        setActivities(actRes.data);
         await loadAssets(1);
         setPage(1);
     };
@@ -411,7 +419,15 @@ function Assets() {
                     <div className="a-card">
                         <div className="inv-top">
                             <h2 className="a-card-title">Asset Inventory</h2>
-                            <div className="inv-pills">
+                            <div className="inv-pills-row">
+                                {!isEmployee && (
+                                <div className="ast-my-assets-wrap" onClick={handleMyAssetsToggle}>
+                                    <div className={`tl-toggle-track ${myAssets ? "on" : ""}`}>
+                                        <div className="tl-toggle-thumb" />
+                                    </div>
+                                    <span className="ast-my-assets-label">My Assets</span>
+                                </div>
+                                )}
                                 {inventoryPills.map((pill) => (
                                     <span key={pill} className="filter-pill">{pill}</span>
                                 ))}
@@ -511,19 +527,19 @@ function Assets() {
                             Recent Asset Activity
                         </h2>
                         <div className="activity-list">
-                            {activities.map((act, i) => (
-                                <div key={i} className="activity-item">
+                            {activities.length === 0 ? (
+                                <p style={{ color: "#94a3b8", fontSize: "13px" }}>No activity yet</p>
+                            ) : activities.map((act, i) => (
+                                <div key={act.id} className="activity-item">
                                     <div className="act-dot-col">
-                                        <span className="act-dot" style={{ background: act.dot }} />
+                                        <span className="act-dot" style={{ background: "#2563eb" }} />
                                         {i < activities.length - 1 && <span className="act-line" />}
                                     </div>
                                     <div className="act-body">
-                                        <p className="act-text">
-                                            <strong>{act.title}</strong>{" "}
-                                            {act.action}{" "}
-                                            {act.target && <strong>{act.target}</strong>}
-                                        </p>
-                                        <p className="act-sub">{act.sub}</p>
+                                        <p className="act-text">{act.action}</p>
+                                        {act.actor && (
+                                            <p className="act-sub">Action performed by {act.actor}</p>
+                                        )}
                                     </div>
                                     <span className="act-time">{act.time}</span>
                                 </div>

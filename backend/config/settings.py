@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'assets',
     'dashboard',
     'reports',
+    'notifications',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'

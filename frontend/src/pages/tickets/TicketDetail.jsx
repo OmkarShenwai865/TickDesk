@@ -1,7 +1,7 @@
 import "./Tickets.css";
 import "./TicketList.css";
 import { useEffect, useState, useRef, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import api from "../../services/api";
 
 import {
@@ -22,6 +22,9 @@ import {
     FiTag,
     FiClock,
     FiEye,
+    FiMic,
+    FiSquare,
+    FiArrowLeft,
 } from "react-icons/fi";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -97,9 +100,24 @@ function AttachmentPreviewOverlay({ attachment, onClose }) {
                         </div>
                     )}
                     <div className="fpv-header-actions">
-                        <a href={attachment.file_url} download={attachment.original_name} className="fpv-btn" title="Download">
+                        <button
+                            className="fpv-btn"
+                            title="Download"
+                            onClick={async () => {
+                                try {
+                                    const res  = await fetch(attachment.file_url);
+                                    const blob = await res.blob();
+                                    const url  = URL.createObjectURL(blob);
+                                    const a    = document.createElement("a");
+                                    a.href     = url;
+                                    a.download = attachment.original_name || "download";
+                                    a.click();
+                                    URL.revokeObjectURL(url);
+                                } catch { window.open(attachment.file_url, "_blank"); }
+                            }}
+                        >
                             <FiDownload size={15} />
-                        </a>
+                        </button>
                         <button className="fpv-btn fpv-close-btn" onClick={onClose} title="Close">
                             <FiX size={15} />
                         </button>
@@ -127,9 +145,23 @@ function AttachmentPreviewOverlay({ attachment, onClose }) {
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 16 }}>
                             <FiFile size={48} color="#9ca3af" />
                             <p style={{ color: "#6b7280", fontSize: "14px" }}>Preview not available for this file type.</p>
-                            <a href={attachment.file_url} download={attachment.original_name} className="ndm-btn-submit" style={{ textDecoration: "none" }}>
+                            <button
+                                className="ndm-btn-submit"
+                                onClick={async () => {
+                                    try {
+                                        const res  = await fetch(attachment.file_url);
+                                        const blob = await res.blob();
+                                        const url  = URL.createObjectURL(blob);
+                                        const a    = document.createElement("a");
+                                        a.href     = url;
+                                        a.download = attachment.original_name || "download";
+                                        a.click();
+                                        URL.revokeObjectURL(url);
+                                    } catch { window.open(attachment.file_url, "_blank"); }
+                                }}
+                            >
                                 <FiDownload size={14} /> Download
-                            </a>
+                            </button>
                         </div>
                     )}
                 </div>
@@ -159,11 +191,8 @@ function AssignModal({ currentAssignee, onClose, onSave }) {
     const [saving,   setSaving]   = useState(false);
 
     useEffect(() => {
-        api.get("accounts/users/?page_size=200").then(r => setUsers(r.data.results)).catch(() => {});
+        api.get("accounts/users/?page_size=200&role=agent").then(r => setUsers(r.data.results)).catch(() => {});
     }, []);
-
-    const agents = users.filter(u => u.role === "agent");
-    const admins = users.filter(u => u.role === "admin");
 
     const handleSave = async () => {
         setSaving(true);
@@ -185,7 +214,7 @@ function AssignModal({ currentAssignee, onClose, onSave }) {
                             <option value="">— Unassigned —</option>
                             {users.map(u => (
                                 <option key={u.id} value={u.id}>
-                                    {u.name || `${u.first_name} ${u.last_name}`.trim() || u.username} ({u.role})
+                                    {u.name || u.username}
                                 </option>
                             ))}
                         </select>
@@ -229,7 +258,7 @@ function EditModal({ ticket, existingAttachments, onClose, onSaved }) {
 
     useEffect(() => {
         Promise.all([
-            api.get("accounts/users/?page_size=200"),
+            api.get("accounts/users/?page_size=200&role=agent"),
             api.get("accounts/departments/?page_size=200"),
         ]).then(([u, d]) => {
             setUsers(u.data.results);
@@ -463,6 +492,7 @@ function EditModal({ ticket, existingAttachments, onClose, onSaved }) {
 
 function TicketDetail() {
     const { id } = useParams();
+    const navigate  = useNavigate();
     const role      = localStorage.getItem("role") || "employee";
     const myUserId  = parseInt(localStorage.getItem("user_id") || "0");
     const isAdmin   = role === "admin";
@@ -478,10 +508,19 @@ function TicketDetail() {
     const [commentText, setCommentText] = useState("");
     const [sending,     setSending]     = useState(false);
     const [resolving,   setResolving]   = useState(false);
+    const [chatFile,    setChatFile]    = useState(null);
+    const [recording,   setRecording]   = useState(false);
+    const [notes,       setNotes]       = useState([]);
+    const [noteText,    setNoteText]    = useState("");
+    const [savingNote,  setSavingNote]  = useState(false);
+    const mediaRecRef  = useRef(null);
+    const audioChunks  = useRef([]);
+    const fileInputRef = useRef(null);
 
     const [showAssign,      setShowAssign]      = useState(false);
     const [showEdit,        setShowEdit]        = useState(false);
     const [previewAtt,      setPreviewAtt]      = useState(null);
+    const [chatPreview,     setChatPreview]     = useState(null);
 
     const chatEndRef   = useRef(null);
     const pollRef      = useRef(null);
@@ -489,17 +528,23 @@ function TicketDetail() {
 
     const load = async () => {
         try {
-            const [tkRes, actRes, attRes, comRes] = await Promise.all([
+            const requests = [
                 api.get(`tickets/${id}/`),
                 api.get(`tickets/${id}/activities/`),
                 api.get(`tickets/${id}/attachments/`),
                 api.get(`tickets/${id}/comments/`),
-            ]);
+            ];
+            const myRole = localStorage.getItem("role") || "";
+            if (myRole === "admin" || myRole === "agent") {
+                requests.push(api.get(`tickets/${id}/notes/`));
+            }
+            const [tkRes, actRes, attRes, comRes, noteRes] = await Promise.all(requests);
             setTicket(tkRes.data);
             setActivities(actRes.data);
             setAttachments(attRes.data);
             setComments(comRes.data);
             commentCount.current = comRes.data.length;
+            if (noteRes) setNotes(noteRes.data);
         } catch (err) {
             if (err.response?.status === 404) setNotFound(true);
             else console.error("Ticket detail load error:", err);
@@ -618,14 +663,78 @@ function TicketDetail() {
     const handleSendComment = async (e) => {
         e.preventDefault();
         const text = commentText.trim();
-        if (!text) return;
+        if (!text && !chatFile) return;
         setSending(true);
         try {
-            const res = await api.post(`tickets/${id}/comments/`, { text });
+            let res;
+            if (chatFile) {
+                const fd = new FormData();
+                if (text) fd.append("text", text);
+                fd.append("file", chatFile.file, chatFile.name);
+                res = await api.post(`tickets/${id}/comments/`, fd, {
+                    headers: { "Content-Type": "multipart/form-data" },
+                });
+            } else {
+                res = await api.post(`tickets/${id}/comments/`, { text });
+            }
             setComments(prev => [...prev, res.data]);
             setCommentText("");
+            setChatFile(null);
         } catch (err) { console.error(err); }
         finally { setSending(false); }
+    };
+
+    const handleChatFileChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) {
+            alert("File too large. Maximum allowed size is 10 MB.");
+            e.target.value = "";
+            return;
+        }
+        const isImage = file.type.startsWith("image/");
+        setChatFile({
+            file,
+            name: file.name,
+            preview: isImage ? URL.createObjectURL(file) : null,
+            isAudio: false,
+        });
+        e.target.value = "";
+    };
+
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioChunks.current = [];
+            const mr = new MediaRecorder(stream);
+            mr.ondataavailable = e => audioChunks.current.push(e.data);
+            mr.onstop = () => {
+                const blob = new Blob(audioChunks.current, { type: "audio/webm" });
+                const file = new File([blob], `voice-${Date.now()}.webm`, { type: "audio/webm" });
+                setChatFile({ file, name: file.name, preview: URL.createObjectURL(blob), isAudio: true });
+                stream.getTracks().forEach(t => t.stop());
+            };
+            mr.start();
+            mediaRecRef.current = mr;
+            setRecording(true);
+        } catch { alert("Microphone access denied."); }
+    };
+
+    const stopRecording = () => {
+        mediaRecRef.current?.stop();
+        setRecording(false);
+    };
+
+    const handleSaveNote = async () => {
+        const text = noteText.trim();
+        if (!text) return;
+        setSavingNote(true);
+        try {
+            const res = await api.post(`tickets/${id}/notes/`, { text });
+            setNotes(prev => [...prev, res.data]);
+            setNoteText("");
+        } catch (err) { console.error(err); }
+        finally { setSavingNote(false); }
     };
 
     return (
@@ -653,6 +762,17 @@ function TicketDetail() {
                     onClose={() => setPreviewAtt(null)}
                 />
             )}
+            {chatPreview && (
+                <AttachmentPreviewOverlay
+                    attachment={chatPreview}
+                    onClose={() => setChatPreview(null)}
+                />
+            )}
+
+            {/* ── Back button ── */}
+            <button className="adet-back-btn" onClick={() => navigate("/tickets")}>
+                <FiArrowLeft size={15} /> Back to Tickets
+            </button>
 
             {/* ── Ticket Header ── */}
             <div className="ticket-header">
@@ -881,11 +1001,44 @@ function TicketDetail() {
                                 </div>
                                 <span className="visibility-badge">Agents Only</span>
                             </div>
+
+                            {/* Existing notes */}
+                            {notes.length > 0 && (
+                                <div className="notes-list">
+                                    {notes.map(n => (
+                                        <div key={n.id} className="note-item">
+                                            <div className="note-avatar">
+                                                {n.author_initials}
+                                            </div>
+                                            <div className="note-body">
+                                                <div className="note-meta">
+                                                    <span className="note-author">{n.author_name}</span>
+                                                    <span className="note-time">{fmtTime(n.created_at)}</span>
+                                                </div>
+                                                <p className="note-text">{n.text}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
                             <textarea
                                 className="notes-textarea"
                                 placeholder="Add a private note for other support agents..."
-                                rows={4}
+                                rows={3}
+                                value={noteText}
+                                onChange={e => setNoteText(e.target.value)}
                             />
+                            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                                <button
+                                    className="ndm-btn-submit"
+                                    style={{ fontSize: 13, padding: "6px 16px" }}
+                                    onClick={handleSaveNote}
+                                    disabled={savingNote || !noteText.trim()}
+                                >
+                                    {savingNote ? "Saving…" : "Add Note"}
+                                </button>
+                            </div>
                         </div>
                     )}
 
@@ -908,11 +1061,52 @@ function TicketDetail() {
                                     No messages yet. Start the conversation.
                                 </p>
                             ) : comments.map((msg) => {
-                                const isMine = msg.author === myUserId;
-                                const type   = isMine ? "sent" : "received";
+                                const isMine   = msg.author === myUserId;
+                                const type     = isMine ? "sent" : "received";
+                                const fname    = msg.original_name || "";
+                                const isImage  = msg.file_url && /\.(png|jpg|jpeg|gif|webp)$/i.test(fname);
+                                // voice recordings are named voice-*.webm; other webm/mp4 etc. are video
+                                const isAudio  = msg.file_url && (/\.(mp3|ogg|wav|m4a)$/i.test(fname) || /^voice-.*\.webm$/i.test(fname));
+                                const isVideo  = msg.file_url && !isAudio && /\.(mp4|mov|avi|webm|mkv)$/i.test(fname);
                                 return (
                                     <div key={msg.id} className={`chat-msg ${type}`}>
-                                        <div className={`chat-bubble ${type}-bubble`}>{msg.text}</div>
+                                        <div className={`chat-bubble ${type}-bubble`}>
+                                            {msg.text && <p style={{ margin: 0 }}>{msg.text}</p>}
+                                            {msg.file_url && isImage && (
+                                                <img
+                                                    src={msg.file_url}
+                                                    alt={fname}
+                                                    className="chat-inline-img"
+                                                    onClick={() => setChatPreview({ file_url: msg.file_url, original_name: fname })}
+                                                />
+                                            )}
+                                            {msg.file_url && isVideo && (
+                                                <div
+                                                    className="chat-video-thumb"
+                                                    onClick={() => setChatPreview({ file_url: msg.file_url, original_name: fname })}
+                                                >
+                                                    <video
+                                                        src={msg.file_url}
+                                                        className="chat-video-el"
+                                                        preload="metadata"
+                                                        muted
+                                                    />
+                                                    <div className="chat-video-play">
+                                                        <svg viewBox="0 0 24 24" fill="white" width="28" height="28">
+                                                            <path d="M8 5v14l11-7z"/>
+                                                        </svg>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {msg.file_url && isAudio && (
+                                                <audio controls src={msg.file_url} className="chat-inline-audio" />
+                                            )}
+                                            {msg.file_url && !isImage && !isVideo && !isAudio && (
+                                                <a href={msg.file_url} target="_blank" rel="noreferrer" className="chat-file-chip">
+                                                    <FiFile size={13} /> {fname}
+                                                </a>
+                                            )}
+                                        </div>
                                         <p className="chat-meta">
                                             {msg.author_name} &bull; {fmtTime(msg.created_at)}
                                         </p>
@@ -923,18 +1117,57 @@ function TicketDetail() {
                         </div>
 
                         <form className="chat-input-area" onSubmit={handleSendComment}>
-                            <input
-                                type="text"
-                                className="chat-input"
-                                placeholder="Type a message..."
-                                value={commentText}
-                                onChange={e => setCommentText(e.target.value)}
-                                disabled={sending}
-                            />
-                            <div className="chat-input-footer">
-                                <div className="chat-input-icons" />
-                                <button type="submit" className="send-btn" disabled={sending || !commentText.trim()}>
-                                    {sending ? "…" : "Send"} <FiSend size={13} />
+                            {/* File preview strip */}
+                            {chatFile && (
+                                <div className="chat-file-preview">
+                                    {chatFile.isAudio ? (
+                                        <audio controls src={chatFile.preview} style={{ height: 32, flex: 1 }} />
+                                    ) : chatFile.preview ? (
+                                        <img src={chatFile.preview} alt="preview" className="chat-preview-thumb" />
+                                    ) : (
+                                        <span className="chat-preview-name"><FiFile size={13} /> {chatFile.name}</span>
+                                    )}
+                                    <button type="button" className="chat-preview-remove" onClick={() => setChatFile(null)}>
+                                        <FiX size={14} />
+                                    </button>
+                                </div>
+                            )}
+                            <div className="chat-input-row">
+                                <input
+                                    type="text"
+                                    className="chat-input"
+                                    placeholder="Type a message..."
+                                    value={commentText}
+                                    onChange={e => setCommentText(e.target.value)}
+                                    disabled={sending}
+                                />
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    style={{ display: "none" }}
+                                    onChange={handleChatFileChange}
+                                    accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip"
+                                />
+                                <button
+                                    type="button"
+                                    className="chat-icon-btn"
+                                    title="Attach file"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={sending || recording}
+                                >
+                                    <FiPaperclip size={16} />
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`chat-icon-btn ${recording ? "chat-icon-btn-recording" : ""}`}
+                                    title={recording ? "Stop recording" : "Record voice"}
+                                    onClick={recording ? stopRecording : startRecording}
+                                    disabled={sending || !!chatFile}
+                                >
+                                    {recording ? <FiSquare size={15} /> : <FiMic size={16} />}
+                                </button>
+                                <button type="submit" className="send-btn" disabled={sending || (!commentText.trim() && !chatFile)}>
+                                    {sending ? "…" : <FiSend size={14} />}
                                 </button>
                             </div>
                         </form>

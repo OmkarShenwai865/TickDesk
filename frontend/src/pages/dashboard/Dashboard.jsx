@@ -146,11 +146,13 @@ function Dashboard() {
     const [assetSegments,     setAssetSegments]     = useState([]);
     const [recentTickets,     setRecentTickets]     = useState([]);
     const [recentAssets,      setRecentAssets]      = useState([]);
+    const [deptTickets,       setDeptTickets]       = useState([]);
+    const [deptAssets,        setDeptAssets]        = useState([]);
 
     useEffect(() => {
         const load = async () => {
             try {
-                const [profile, statsRes, ticketStatus, assetDist, tickets, assets] =
+                const [profile, statsRes, ticketStatus, assetDist, tickets, assets, deptTix, deptAss] =
                     await Promise.all([
                         api.get("accounts/profile/"),
                         api.get("dashboard/stats/"),
@@ -158,6 +160,8 @@ function Dashboard() {
                         api.get("dashboard/asset-distribution/"),
                         api.get("dashboard/recent-tickets/"),
                         api.get("dashboard/recent-assets/"),
+                        api.get("dashboard/dept-ticket-distribution/"),
+                        api.get("dashboard/dept-asset-distribution/"),
                     ]);
 
                 const u = profile.data;
@@ -170,6 +174,8 @@ function Dashboard() {
 
                 setRecentTickets(tickets.data);
                 setRecentAssets (assets.data);
+                setDeptTickets(deptTix.data);
+                setDeptAssets(deptAss.data);
             } catch (err) {
                 console.error("Dashboard load error:", err);
             }
@@ -180,9 +186,24 @@ function Dashboard() {
     const totalTickets = ticketSegments.reduce((s, seg) => s + seg.count, 0);
     const totalAssets  = assetSegments.reduce((s, seg) => s + seg.count, 0);
 
-    const today = new Date().toLocaleDateString("en-US", {
-        month: "long", day: "numeric", year: "numeric",
-    });
+    const [today, setToday] = useState(() =>
+        new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })
+    );
+
+    useEffect(() => {
+        // Refresh the date label at midnight
+        const msUntilMidnight = () => {
+            const now = new Date();
+            const midnight = new Date(now);
+            midnight.setHours(24, 0, 0, 0);
+            return midnight - now;
+        };
+        const tick = () => {
+            setToday(new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }));
+        };
+        const timer = setTimeout(() => { tick(); }, msUntilMidnight());
+        return () => clearTimeout(timer);
+    }, [today]);
 
     return (
         <div className="dashboard">
@@ -196,7 +217,6 @@ function Dashboard() {
                 <div className="welcome-date">
                     <FiCalendar size={15} />
                     <span>{today}</span>
-                    <FiChevronDown size={14} />
                 </div>
             </section>
 
@@ -335,6 +355,84 @@ function Dashboard() {
                                 ))}
                             </div>
                         </div>
+                    </div>
+
+                    {/* Dept-wise Ticket Distribution — vertical bar chart */}
+                    <div className="db-card">
+                        <div className="card-header">
+                            <h2>Dept-wise Ticket Distribution</h2>
+                        </div>
+                        {deptTickets.length === 0 ? (
+                            <p className="dchart-empty">No data yet</p>
+                        ) : (() => {
+                            const maxTotal = Math.max(...deptTickets.map(d => d.total));
+                            const CHART_H  = 140;
+                            return (
+                                <>
+                                    <div className="vchart">
+                                        {deptTickets.map(d => {
+                                            const totalH = maxTotal ? Math.round(d.total / maxTotal * CHART_H) : 0;
+                                            const openH  = d.total ? Math.round(d.open        / d.total * totalH) : 0;
+                                            const progH  = d.total ? Math.round(d.in_progress / d.total * totalH) : 0;
+                                            const resH   = d.total ? Math.round(d.resolved    / d.total * totalH) : 0;
+                                            const closH  = totalH - openH - progH - resH;
+                                            return (
+                                                <div key={d.name} className="vchart-col">
+                                                    <span className="vchart-val">{d.total}</span>
+                                                    <div className="vchart-bar" style={{ height: CHART_H }}>
+                                                        <div className="vchart-stack">
+                                                            {closH > 0 && <div className="vb-closed"   style={{ height: closH }} title={`Closed: ${d.closed}`} />}
+                                                            {resH  > 0 && <div className="vb-resolved" style={{ height: resH  }} title={`Resolved: ${d.resolved}`} />}
+                                                            {progH > 0 && <div className="vb-inprog"   style={{ height: progH }} title={`In Progress: ${d.in_progress}`} />}
+                                                            {openH > 0 && <div className="vb-open"     style={{ height: openH }} title={`Open: ${d.open}`} />}
+                                                        </div>
+                                                    </div>
+                                                    <span className="vchart-label">{d.name}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="vchart-legend">
+                                        {[["vb-open","Open"],["vb-inprog","In Progress"],["vb-resolved","Resolved"],["vb-closed","Closed"]].map(([cls,lbl]) => (
+                                            <span key={lbl} className="vcl-item">
+                                                <i className={`vcl-dot ${cls}`} />{lbl}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </>
+                            );
+                        })()}
+                    </div>
+
+                    {/* Dept-wise Asset Distribution — vertical bar chart */}
+                    <div className="db-card">
+                        <div className="card-header">
+                            <h2>Dept-wise Asset Distribution</h2>
+                        </div>
+                        {deptAssets.length === 0 ? (
+                            <p className="dchart-empty">No data yet</p>
+                        ) : (() => {
+                            const maxTotal = Math.max(...deptAssets.map(d => d.total));
+                            const CHART_H  = 140;
+                            return (
+                                <div className="vchart">
+                                    {deptAssets.map(d => {
+                                        const barH = maxTotal ? Math.round(d.total / maxTotal * CHART_H) : 0;
+                                        return (
+                                            <div key={d.name} className="vchart-col">
+                                                <span className="vchart-val">{d.total}</span>
+                                                <div className="vchart-bar" style={{ height: CHART_H }}>
+                                                    <div className="vchart-stack">
+                                                        <div className="vb-asset" style={{ height: barH }} title={`${d.total} assets`} />
+                                                    </div>
+                                                </div>
+                                                <span className="vchart-label">{d.name}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()}
                     </div>
 
                 </section>

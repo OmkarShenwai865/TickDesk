@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import "./EmployeePortal.css";
@@ -21,13 +21,40 @@ function initials(name) {
     return name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
+const PRIORITY_LABEL = { low: "Low", medium: "Medium", high: "High", critical: "Critical" };
+const PRIORITY_BG    = { low: "#16a34a", medium: "#d97706", high: "#ea580c", critical: "#dc2626" };
+
 // ── New Ticket Modal ──────────────────────────────────────────────────────────
 function NewTicketModal({ onClose, onCreated }) {
-    const [form, setForm] = useState({ title: "", description: "", priority: "medium" });
-    const [error, setError] = useState("");
-    const [submitting, setSubmitting] = useState(false);
+    const [form,        setForm]       = useState({ title: "", description: "", priority: "medium" });
+    const [error,       setError]      = useState("");
+    const [submitting,  setSubmitting] = useState(false);
+    const [aiSuggested, setAiSuggested] = useState(null); // detected priority label to show
+    const suggestTimer = useRef(null);
 
-    const set = f => e => setForm(p => ({ ...p, [f]: e.target.value }));
+    const handleChange = (field) => (e) => {
+        const value = e.target.value;
+        setForm(p => ({ ...p, [field]: value }));
+        setError("");
+
+        if (field === "title" || field === "description") {
+            clearTimeout(suggestTimer.current);
+            const newForm = { ...form, [field]: value };
+            const text = (newForm.title + newForm.description).trim();
+            if (text.length < 5) { setAiSuggested(null); return; }
+            suggestTimer.current = setTimeout(async () => {
+                try {
+                    const res = await api.post("tickets/suggest-priority/", {
+                        title: newForm.title,
+                        description: newForm.description,
+                    });
+                    const p = res.data.priority;
+                    setForm(prev => ({ ...prev, priority: p }));
+                    setAiSuggested(p);
+                } catch { /* silent */ }
+            }, 600);
+        }
+    };
 
     const handleSubmit = async () => {
         if (!form.title.trim()) { setError("Title is required."); return; }
@@ -59,21 +86,18 @@ function NewTicketModal({ onClose, onCreated }) {
                     {error && <div className="ep-err-banner">{error}</div>}
                     <div className="ep-field">
                         <label>Subject <span style={{ color: "#ef4444" }}>*</span></label>
-                        <input className="ep-input" placeholder="Briefly describe your issue" value={form.title} onChange={set("title")} />
+                        <input className="ep-input" placeholder="Briefly describe your issue" value={form.title} onChange={handleChange("title")} />
                     </div>
                     <div className="ep-field">
                         <label>Description</label>
-                        <textarea className="ep-input ep-textarea" rows={4} placeholder="Provide more details…" value={form.description} onChange={set("description")} />
+                        <textarea className="ep-input ep-textarea" rows={4} placeholder="Provide more details…" value={form.description} onChange={handleChange("description")} />
                     </div>
-                    <div className="ep-field">
-                        <label>Priority</label>
-                        <select className="ep-input" value={form.priority} onChange={set("priority")}>
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                            <option value="critical">Critical</option>
-                        </select>
-                    </div>
+                    {aiSuggested && (
+                        <div className="ep-ai-priority">
+                            <span className="ep-ai-dot" style={{ background: PRIORITY_BG[aiSuggested] }} />
+                            Priority auto-detected: <strong style={{ color: PRIORITY_BG[aiSuggested] }}>{PRIORITY_LABEL[aiSuggested]}</strong>
+                        </div>
+                    )}
                 </div>
                 <div className="ep-modal-footer">
                     <button className="ep-btn-cancel" onClick={onClose} disabled={submitting}>Cancel</button>

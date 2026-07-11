@@ -18,10 +18,11 @@ import "./Sidebar.css";
 const menuItems = [
     { name: "Dashboard",    path: "/dashboard",    icon: FiGrid,     roles: ["admin"] },
     { name: "Assets",       path: "/assets",       icon: FiBox,      roles: ["admin", "agent"] },
+    { name: "My Assets",   path: "/assets?my_assets=1", icon: FiBox, roles: ["employee"] },
     { name: "Tickets",      path: "/tickets",      icon: FiClipboard,roles: ["admin", "agent", "employee"] },
     { name: "Users",        path: "/users",        icon: FiUsers,    roles: ["admin"] },
     { name: "Departments",  path: "/departments",  icon: FiLayers,   roles: ["admin"] },
-    { name: "Reports",      path: "/reports",      icon: FiBarChart2,roles: ["admin"] },
+    { name: "Reports",      path: "/reports",      icon: FiBarChart2,roles: ["admin", "agent"] },
     { name: "Knowledge Base",path: "/knowledge-base",icon: FiBookOpen,roles: ["admin", "agent", "employee"] },
     { name: "Settings",     path: "/settings",     icon: FiSettings, roles: ["admin"] },
 ];

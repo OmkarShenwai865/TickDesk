@@ -10,4 +10,6 @@ urlpatterns = [
     path('<int:pk>/attachments/<int:att_pk>/', views.TicketAttachmentDetailView.as_view(), name='ticket-attachment-detail'),
     path('<int:pk>/comments/',                 views.TicketCommentView.as_view(),          name='ticket-comments'),
     path('<int:pk>/activities/',               views.TicketActivityView.as_view(),         name='ticket-activities'),
+    path('<int:pk>/notes/',                    views.TicketNoteView.as_view(),             name='ticket-notes'),
+    path('suggest-priority/',                  views.SuggestPriorityView.as_view(),        name='ticket-suggest-priority'),
 ]

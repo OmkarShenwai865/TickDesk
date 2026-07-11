@@ -5,14 +5,48 @@ from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import timedelta
 
-from .models import Ticket, TicketAttachment, TicketComment, TicketActivity
+from .models import Ticket, TicketAttachment, TicketComment, TicketActivity, TicketNote
 from .serializers import (
     TicketSerializer, TicketAttachmentSerializer,
-    TicketCommentSerializer, TicketActivitySerializer,
+    TicketCommentSerializer, TicketActivitySerializer, TicketNoteSerializer,
 )
 from dashboard.permissions import IsCompanyAdmin, IsCompanyMember, IsAgentOrAdmin
 
 PAGE_SIZE = 10
+
+
+# ─── Rule-based priority suggestion ───────────────────────────────────────────
+
+_CRITICAL_WORDS = {
+    'down', 'outage', 'breach', 'hacked', 'ransomware', 'data loss', 'not working',
+    'crashed', 'crash', 'unresponsive', 'offline', 'emergency', 'production down',
+    'server down', 'database down', 'system down', 'completely broken', 'security incident',
+}
+_HIGH_WORDS = {
+    'urgent', 'broken', 'cannot access', "can't access", 'cant access', 'blocked',
+    'unable to login', 'unable to log in', 'password reset', 'locked out', 'not responding',
+    'failed', 'failure', 'corrupted', 'virus', 'malware', 'lost data', 'deleted',
+    'deadline', 'meeting', 'asap', 'immediately', 'critical issue',
+}
+_MEDIUM_WORDS = {
+    'slow', 'error', 'issue', 'problem', 'intermittent', 'sometimes', 'occasionally',
+    'keeps', 'freezing', 'freeze', 'hanging', 'lag', 'laggy', 'not syncing', 'sync issue',
+    'permission', 'access denied', 'cannot open', "can't open", 'glitch', 'bug',
+}
+
+
+def suggest_priority(title: str, description: str) -> str:
+    text = (title + ' ' + description).lower()
+    for phrase in _CRITICAL_WORDS:
+        if phrase in text:
+            return 'critical'
+    for phrase in _HIGH_WORDS:
+        if phrase in text:
+            return 'high'
+    for phrase in _MEDIUM_WORDS:
+        if phrase in text:
+            return 'medium'
+    return 'low'
 
 
 # ─── Auto-assignment: least-loaded agent, round-robin on ties ─────────────────
@@ -164,9 +198,17 @@ class TicketListCreateView(APIView):
         if role == 'employee':
             qs = qs.filter(created_by=request.user)
         elif role == 'agent':
-            from django.db.models import Q
             qs = qs.filter(Q(assigned_to=request.user) | Q(created_by=request.user))
         # admin sees all
+
+        # Admin-only "My Tickets" toggle — show only tickets created by or assigned to the admin
+        if role == 'admin' and request.query_params.get('my_tickets') == '1':
+            qs = qs.filter(Q(created_by=request.user) | Q(assigned_to=request.user))
+
+        if role == 'admin':
+            dept = request.query_params.get('department', '').strip()
+            if dept:
+                qs = qs.filter(department_id=dept)
 
         status_filter = request.query_params.get('status')
         search        = request.query_params.get('search', '').strip()
@@ -198,12 +240,21 @@ class TicketListCreateView(APIView):
             if role == 'employee' and not manual_assignee:
                 auto_agent = get_auto_assignee(request.user.company)
 
+            # For employees, always override priority with AI detection
+            extra = {}
+            if role == 'employee':
+                title       = request.data.get('title', '')
+                description = request.data.get('description', '')
+                extra['priority'] = suggest_priority(title, description)
+
             ticket = serializer.save(
                 company=request.user.company,
                 created_by=request.user,
                 **({"assigned_to": auto_agent} if auto_agent else {}),
+                **extra,
             )
 
+            from notifications.utils import notify
             TicketActivity.objects.create(
                 ticket=ticket,
                 actor=request.user,
@@ -213,7 +264,14 @@ class TicketListCreateView(APIView):
                 TicketActivity.objects.create(
                     ticket=ticket,
                     actor=request.user,
-                    action=f"Auto-assigned to {auto_agent.get_full_name() or auto_agent.username} (round-robin)",
+                    action=f"Auto-assigned to {auto_agent.get_full_name() or auto_agent.username}",
+                )
+                notify(
+                    auto_agent,
+                    'ticket_assigned',
+                    f"New ticket assigned: {ticket.ticket_number}",
+                    ticket.title,
+                    f"/tickets/{ticket.id}",
                 )
 
             return Response(TicketSerializer(ticket).data, status=status.HTTP_201_CREATED)
@@ -251,6 +309,7 @@ class TicketDetailView(APIView):
         if serializer.is_valid():
             updated = serializer.save()
             actor = request.user
+            from notifications.utils import notify
 
             if updated.status != old_status:
                 label = dict(Ticket.STATUS_CHOICES).get(updated.status, updated.status)
@@ -258,12 +317,30 @@ class TicketDetailView(APIView):
                     ticket=updated, actor=actor,
                     action=f"Status changed to {label}",
                 )
+                # Notify the requester about status change
+                if updated.created_by and updated.created_by != actor:
+                    notify(
+                        updated.created_by,
+                        'ticket_status',
+                        f"Ticket {updated.ticket_number} is now {label}",
+                        updated.title,
+                        f"/tickets/{updated.id}",
+                    )
             if updated.assigned_to_id != old_assigned_to:
                 name = (updated.assigned_to.get_full_name() or updated.assigned_to.username) if updated.assigned_to else "nobody"
                 TicketActivity.objects.create(
                     ticket=updated, actor=actor,
                     action=f"Assigned to {name}",
                 )
+                # Notify the newly assigned agent
+                if updated.assigned_to and updated.assigned_to != actor:
+                    notify(
+                        updated.assigned_to,
+                        'ticket_assigned',
+                        f"Ticket assigned to you: {updated.ticket_number}",
+                        updated.title,
+                        f"/tickets/{updated.id}",
+                    )
             if updated.priority != old_priority:
                 label = dict(Ticket.PRIORITY_CHOICES).get(updated.priority, updated.priority)
                 TicketActivity.objects.create(
@@ -385,16 +462,50 @@ class TicketCommentView(APIView):
         if not ticket:
             return Response(status=status.HTTP_404_NOT_FOUND)
         comments = ticket.comments.select_related('author').all()
-        return Response(TicketCommentSerializer(comments, many=True).data)
+        return Response(TicketCommentSerializer(comments, many=True, context={'request': request}).data)
 
     def post(self, request, pk):
         ticket = self._get_ticket(pk, request.user.company)
         if not ticket:
             return Response(status=status.HTTP_404_NOT_FOUND)
+
         text = request.data.get('text', '').strip()
-        if not text:
-            return Response({'detail': 'Comment text is required.'}, status=status.HTTP_400_BAD_REQUEST)
-        comment = TicketComment.objects.create(ticket=ticket, author=request.user, text=text)
+        file = request.FILES.get('file')
+
+        if not text and not file:
+            return Response({'detail': 'Message or file is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if file and file.size > 10 * 1024 * 1024:
+            return Response({'detail': 'File too large. Maximum allowed size is 10 MB.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        comment = TicketComment.objects.create(
+            ticket=ticket,
+            author=request.user,
+            text=text,
+            **({"file": file, "original_name": file.name} if file else {}),
+        )
+
+        from notifications.utils import notify
+        sender_name = request.user.get_full_name() or request.user.username
+
+        # Notify assigned agent when requester comments
+        if ticket.assigned_to and ticket.assigned_to != request.user:
+            notify(
+                ticket.assigned_to,
+                'ticket_comment',
+                f"New message on {ticket.ticket_number}",
+                f"{sender_name}: {text[:80]}" if text else f"{sender_name} sent a file",
+                f"/tickets/{ticket.id}",
+            )
+        # Notify requester when agent/admin comments
+        if ticket.created_by and ticket.created_by != request.user:
+            notify(
+                ticket.created_by,
+                'ticket_comment',
+                f"New reply on {ticket.ticket_number}",
+                f"{sender_name}: {text[:80]}" if text else f"{sender_name} sent a file",
+                f"/tickets/{ticket.id}",
+            )
 
         # Auto → In Progress when the assigned agent replies for the first time
         if (
@@ -410,7 +521,10 @@ class TicketCommentView(APIView):
                 action="Status changed to In Progress (agent replied)",
             )
 
-        return Response(TicketCommentSerializer(comment).data, status=status.HTTP_201_CREATED)
+        return Response(
+            TicketCommentSerializer(comment, context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class TicketActivityView(APIView):
@@ -428,3 +542,53 @@ class TicketActivityView(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
         activities = ticket.activities.select_related('actor').order_by('created_at')
         return Response(TicketActivitySerializer(activities, many=True).data)
+
+
+class TicketNoteView(APIView):
+    permission_classes = [IsAgentOrAdmin]
+
+    def _get_ticket(self, pk, company):
+        try:
+            return Ticket.objects.get(pk=pk, company=company)
+        except Ticket.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        ticket = self._get_ticket(pk, request.user.company)
+        if not ticket:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        notes = ticket.notes.select_related('author').all()
+        return Response(TicketNoteSerializer(notes, many=True).data)
+
+    def post(self, request, pk):
+        ticket = self._get_ticket(pk, request.user.company)
+        if not ticket:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        text = request.data.get('text', '').strip()
+        if not text:
+            return Response({'detail': 'Note text is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        note = TicketNote.objects.create(ticket=ticket, author=request.user, text=text)
+
+        from notifications.utils import notify
+        sender_name = request.user.get_full_name() or request.user.username
+        # Notify the assigned agent (if it's not the note author)
+        if ticket.assigned_to and ticket.assigned_to != request.user:
+            notify(
+                ticket.assigned_to,
+                'ticket_comment',
+                f"Internal note on {ticket.ticket_number}",
+                f"{sender_name}: {text[:80]}",
+                f"/tickets/{ticket.id}",
+            )
+
+        return Response(TicketNoteSerializer(note).data, status=status.HTTP_201_CREATED)
+
+
+class SuggestPriorityView(APIView):
+    permission_classes = [IsCompanyMember]
+
+    def post(self, request):
+        title       = request.data.get('title', '')
+        description = request.data.get('description', '')
+        priority    = suggest_priority(title, description)
+        return Response({'priority': priority})

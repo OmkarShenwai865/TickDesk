@@ -578,3 +578,101 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* ===========================
+   Vertical Bar Charts (dept distribution)
+=========================== */
+
+.dchart-empty {
+    font-size: 13px;
+    color: #94a3b8;
+    text-align: center;
+    padding: 32px 0;
+}
+
+.vchart {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 4px 0 0;
+    overflow-x: auto;
+}
+
+.vchart-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    flex: 1;
+    min-width: 40px;
+}
+
+.vchart-val {
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+}
+
+.vchart-bar {
+    width: 100%;
+    display: flex;
+    align-items: flex-end;
+    background: #f8fafc;
+    border-radius: 5px 5px 0 0;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.vchart-stack {
+    width: 100%;
+    display: flex;
+    flex-direction: column-reverse;
+    border-radius: 5px 5px 0 0;
+    overflow: hidden;
+}
+
+.vchart-stack > div {
+    width: 100%;
+    transition: height 0.4s ease;
+}
+
+.vb-open     { background: #3b82f6; }
+.vb-inprog   { background: #f97316; }
+.vb-resolved { background: #22c55e; }
+.vb-closed   { background: #6b7280; }
+.vb-asset    { background: #6366f1; }
+
+.vchart-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: #64748b;
+    text-align: center;
+    word-break: break-word;
+    line-height: 1.3;
+    max-width: 100%;
+}
+
+.vchart-legend {
+    display: flex;
+    gap: 12px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
+    flex-wrap: wrap;
+}
+
+.vcl-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    color: #64748b;
+}
+
+.vcl-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    font-style: normal;
+    flex-shrink: 0;
+}

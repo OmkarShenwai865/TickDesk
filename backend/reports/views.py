@@ -6,7 +6,7 @@ from django.db.models import Count
 from accounts.models import User
 from assets.models import Asset
 from tickets.models import Ticket
-from dashboard.permissions import IsCompanyAdmin
+from dashboard.permissions import IsCompanyAdmin, IsAgentOrAdmin
 
 AVATAR_COLORS = [
     '#2563eb', '#7c3aed', '#16a34a', '#ea580c',
@@ -24,14 +24,21 @@ CATEGORY_COLORS = [
 ]
 
 
+def _is_agent(request):
+    return getattr(request.user, 'role', '') == 'agent'
+
+
 class ReportsSummaryView(APIView):
-    permission_classes = [IsCompanyAdmin]
+    permission_classes = [IsAgentOrAdmin]
 
     def get(self, request):
         company = request.user.company
         tickets = Ticket.objects.filter(company=company)
         assets  = Asset.objects.filter(company=company)
-        users   = User.objects.filter(company=company)
+
+        if _is_agent(request):
+            tickets = tickets.filter(assigned_to=request.user)
+            assets  = assets.filter(assigned_to=request.user)
 
         total_t  = tickets.count()
         resolved = tickets.filter(status__in=['resolved', 'closed']).count()
@@ -41,10 +48,11 @@ class ReportsSummaryView(APIView):
         assigned = assets.filter(status='assigned').count()
         util_pct = round(assigned / total_a * 100) if total_a else 0
 
+        users = User.objects.filter(company=company)
         return Response({
             'total_tickets':     total_t,
             'assets_managed':    total_a,
-            'active_users':      users.filter(status='active').count(),
+            'active_users':      users.filter(status='active').count() if not _is_agent(request) else None,
             'sla_compliance':    sla_pct,
             'resolution_rate':   sla_pct,
             'asset_utilization': util_pct,
@@ -52,7 +60,7 @@ class ReportsSummaryView(APIView):
 
 
 class TicketTrendsView(APIView):
-    permission_classes = [IsCompanyAdmin]
+    permission_classes = [IsAgentOrAdmin]
 
     def get(self, request):
         company = request.user.company
@@ -61,6 +69,8 @@ class TicketTrendsView(APIView):
         labels  = [d.strftime('%a').upper() for d in days]
 
         tickets = Ticket.objects.filter(company=company)
+        if _is_agent(request):
+            tickets = tickets.filter(assigned_to=request.user)
 
         created_map = {
             r['created_at__date']: r['count']
@@ -85,11 +95,13 @@ class TicketTrendsView(APIView):
 
 
 class TicketsByStatusView(APIView):
-    permission_classes = [IsCompanyAdmin]
+    permission_classes = [IsAgentOrAdmin]
 
     def get(self, request):
         company = request.user.company
         qs      = Ticket.objects.filter(company=company)
+        if _is_agent(request):
+            qs = qs.filter(assigned_to=request.user)
         total   = qs.count()
 
         conf = [
@@ -111,13 +123,15 @@ class TicketsByStatusView(APIView):
 
 
 class TicketsByDeptView(APIView):
-    permission_classes = [IsCompanyAdmin]
+    permission_classes = [IsAgentOrAdmin]
 
     def get(self, request):
         company = request.user.company
+        base = Ticket.objects.filter(company=company)
+        if _is_agent(request):
+            base = base.filter(assigned_to=request.user)
         qs = (
-            Ticket.objects
-            .filter(company=company)
+            base
             .values('department__name')
             .annotate(count=Count('id'))
             .order_by('-count')[:8]
@@ -134,13 +148,15 @@ class TicketsByDeptView(APIView):
 
 
 class AssetsByCategoryView(APIView):
-    permission_classes = [IsCompanyAdmin]
+    permission_classes = [IsAgentOrAdmin]
 
     def get(self, request):
         company = request.user.company
+        base = Asset.objects.filter(company=company)
+        if _is_agent(request):
+            base = base.filter(assigned_to=request.user)
         qs = (
-            Asset.objects
-            .filter(company=company)
+            base
             .values('category')
             .annotate(count=Count('id'))
             .order_by('-count')
@@ -158,7 +174,7 @@ class AssetsByCategoryView(APIView):
 
 
 class TopAgentsView(APIView):
-    permission_classes = [IsCompanyAdmin]
+    permission_classes = [IsAgentOrAdmin]
 
     def get(self, request):
         company = request.user.company
@@ -188,12 +204,15 @@ class TopAgentsView(APIView):
 
 
 class SystemHealthView(APIView):
-    permission_classes = [IsCompanyAdmin]
+    permission_classes = [IsAgentOrAdmin]
 
     def get(self, request):
         company = request.user.company
         tickets = Ticket.objects.filter(company=company)
         assets  = Asset.objects.filter(company=company)
+        if _is_agent(request):
+            tickets = tickets.filter(assigned_to=request.user)
+            assets  = assets.filter(assigned_to=request.user)
 
         total_t  = tickets.count()
         resolved = tickets.filter(status__in=['resolved', 'closed']).count()

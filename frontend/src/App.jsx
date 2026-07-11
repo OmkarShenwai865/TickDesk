@@ -43,14 +43,14 @@ function App() {
                         </ProtectedRoute>
                     }
                 >
-                    <Route path="/dashboard"    element={<ProtectedRoute roles={["admin"]}><Dashboard /></ProtectedRoute>} />
-                    <Route path="/assets"       element={<ProtectedRoute roles={["admin","agent"]}><Assets /></ProtectedRoute>} />
-                    <Route path="/assets/:id"   element={<ProtectedRoute roles={["admin","agent"]}><AssetDetail /></ProtectedRoute>} />
+                    <Route path="/dashboard"    element={<ProtectedRoute roles={["admin","agent"]}><Dashboard /></ProtectedRoute>} />
+                    <Route path="/assets"       element={<ProtectedRoute roles={["admin","agent","employee"]}><Assets /></ProtectedRoute>} />
+                    <Route path="/assets/:id"   element={<ProtectedRoute roles={["admin","agent","employee"]}><AssetDetail /></ProtectedRoute>} />
                     <Route path="/tickets"      element={<Tickets />} />
                     <Route path="/tickets/:id"  element={<TicketDetail />} />
                     <Route path="/users"        element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
                     <Route path="/departments"  element={<ProtectedRoute roles={["admin"]}><Departments /></ProtectedRoute>} />
-                    <Route path="/reports"      element={<ProtectedRoute roles={["admin"]}><Reports /></ProtectedRoute>} />
+                    <Route path="/reports"      element={<ProtectedRoute roles={["admin","agent"]}><Reports /></ProtectedRoute>} />
                     <Route path="/knowledge-base" element={<KnowledgeBase />} />
                     <Route path="/settings"     element={<ProtectedRoute roles={["admin"]}><Settings /></ProtectedRoute>}>
                       <Route index              element={<Navigate to="/settings/general" replace />} />

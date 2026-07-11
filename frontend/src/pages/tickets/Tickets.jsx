@@ -264,17 +264,22 @@ function FilePreviewOverlay({ entry, onClose }) {
     );
 }
 
+const PRIORITY_LABELS = { low: 'Low', medium: 'Medium', high: 'High', critical: 'Critical' };
+const PRIORITY_COLORS = { low: '#22c55e', medium: '#f59e0b', high: '#f97316', critical: '#ef4444' };
+
 function NewTicketModal({ onClose, onCreated }) {
     const role = localStorage.getItem("role") || "employee";
     const isEmployee = role === "employee";
-    const [form,        setForm]        = useState(EMPTY_FORM);
-    const [users,       setUsers]       = useState([]);
-    const [departments, setDepartments] = useState([]);
-    const [submitting,  setSubmitting]  = useState(false);
-    const [error,       setError]       = useState("");
-    const [files,       setFiles]       = useState([]);   // { file, id, kind, thumbUrl, error }
-    const [dragOver,    setDragOver]    = useState(false);
-    const [preview,     setPreview]     = useState(null); // { file, kind }
+    const [form,           setForm]          = useState(EMPTY_FORM);
+    const [users,          setUsers]         = useState([]);
+    const [departments,    setDepartments]   = useState([]);
+    const [submitting,     setSubmitting]    = useState(false);
+    const [error,          setError]         = useState("");
+    const [files,          setFiles]         = useState([]);
+    const [dragOver,       setDragOver]      = useState(false);
+    const [preview,        setPreview]       = useState(null);
+    const [aiSuggestion,   setAiSuggestion] = useState(null);   // { priority, loading }
+    const suggestTimer = useRef(null);
     const fileInputRef = useRef(null);
 
     useEffect(() => {
@@ -291,8 +296,32 @@ function NewTicketModal({ onClose, onCreated }) {
     }, []);
 
     const handleChange = (e) => {
-        setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+        const { name, value } = e.target;
+        setForm(f => ({ ...f, [name]: value }));
         setError("");
+
+        // Trigger AI suggestion when title or description changes
+        if (name === 'title' || name === 'description') {
+            clearTimeout(suggestTimer.current);
+            const newForm = { ...form, [name]: value };
+            const text = (newForm.title + newForm.description).trim();
+            if (text.length < 5) { setAiSuggestion(null); return; }
+            setAiSuggestion(prev => ({ ...(prev || {}), loading: true }));
+            suggestTimer.current = setTimeout(async () => {
+                try {
+                    const res = await api.post('tickets/suggest-priority/', {
+                        title: newForm.title,
+                        description: newForm.description,
+                    });
+                    const suggested = res.data.priority;
+                    setAiSuggestion({ priority: suggested, loading: false });
+                    // For employees, auto-apply since they can't set priority manually
+                    if (isEmployee) setForm(f => ({ ...f, priority: suggested }));
+                } catch {
+                    setAiSuggestion(null);
+                }
+            }, 600);
+        }
     };
 
     // Revoke all thumb URLs when modal unmounts
@@ -439,8 +468,24 @@ function NewTicketModal({ onClose, onCreated }) {
                         </div>
 
                         <div className="ntm-row-2">
+                            {!isEmployee && (
                             <div>
-                                <label className="ntm-label">Priority</label>
+                                <label className="ntm-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    Priority
+                                    {aiSuggestion && !aiSuggestion.loading && (
+                                        <span
+                                            className="ntm-ai-badge"
+                                            style={{ background: PRIORITY_COLORS[aiSuggestion.priority] }}
+                                            title="AI suggested priority — click to apply"
+                                            onClick={() => setForm(f => ({ ...f, priority: aiSuggestion.priority }))}
+                                        >
+                                            ✦ AI: {PRIORITY_LABELS[aiSuggestion.priority]}
+                                        </span>
+                                    )}
+                                    {aiSuggestion?.loading && (
+                                        <span className="ntm-ai-badge ntm-ai-loading">✦ Analyzing…</span>
+                                    )}
+                                </label>
                                 <select
                                     className="ntm-select"
                                     name="priority"
@@ -453,6 +498,7 @@ function NewTicketModal({ onClose, onCreated }) {
                                     <option value="critical">Critical</option>
                                 </select>
                             </div>
+                            )}
 
                             <div>
                                 <label className="ntm-label">Department</label>
@@ -622,10 +668,17 @@ const PAGE_SIZE = 10;
 
 function Tickets() {
     const navigate = useNavigate();
+    const role      = localStorage.getItem("role") || "";
+    const myUserId  = parseInt(localStorage.getItem("user_id") || "0", 10);
+    const isAdmin   = role === "admin";
+
     const [view,          setView]         = useState("table");
     const [activeFilter,  setActiveFilter] = useState("");
     const [search,        setSearch]       = useState("");
     const [showModal,     setShowModal]    = useState(false);
+    const [myTickets,     setMyTickets]    = useState(false);
+    const [deptFilter,    setDeptFilter]   = useState("");
+    const [departments,   setDepartments]  = useState([]);
 
     const [stats,         setStats]        = useState(null);
     const [tickets,       setTickets]      = useState([]);
@@ -636,11 +689,13 @@ function Tickets() {
 
     const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
-    const loadTickets = async (pg = 1, statusVal = activeFilter, q = search) => {
+    const loadTickets = async (pg = 1, statusVal = activeFilter, q = search, mine = myTickets, dept = deptFilter) => {
         try {
             const params = new URLSearchParams({ page: pg, page_size: PAGE_SIZE });
-            if (statusVal) params.set('status', statusVal);
-            if (q)         params.set('search', q);
+            if (statusVal)      params.set('status', statusVal);
+            if (q)              params.set('search', q);
+            if (mine && isAdmin) params.set('my_tickets', '1');
+            if (dept && isAdmin) params.set('department', dept);
             const res = await api.get(`tickets/?${params}`);
             setTickets(res.data.results);
             setTotalCount(res.data.count);
@@ -661,12 +716,15 @@ function Tickets() {
     useEffect(() => {
         const init = async () => {
             try {
-                const [statsRes, distRes] = await Promise.all([
+                const requests = [
                     api.get("tickets/stats/"),
                     api.get("tickets/priority-distribution/"),
-                ]);
+                ];
+                if (isAdmin) requests.push(api.get("accounts/departments/?page_size=200"));
+                const [statsRes, distRes, deptRes] = await Promise.all(requests);
                 setStats(statsRes.data);
                 setPriorityDist(distRes.data);
+                if (deptRes) setDepartments(deptRes.data.results);
             } catch (err) {
                 console.error("Tickets init error:", err);
             }
@@ -679,23 +737,76 @@ function Tickets() {
         if (view === "kanban") loadKanban();
     }, [view]);
 
+    const exportToCSV = async () => {
+        try {
+            // Fetch all tickets (no pagination) for the current filters
+            const params = new URLSearchParams({ page: 1, page_size: 9999 });
+            if (activeFilter) params.set('status', activeFilter);
+            if (search)       params.set('search', search);
+            if (myTickets)    params.set('my_tickets', '1');
+            if (deptFilter)   params.set('department', deptFilter);
+            const res = await api.get(`tickets/?${params}`);
+            const rows = res.data.results || [];
+
+            const headers = ["Ticket ID", "Subject", "Requester", "Priority", "Status", "Assigned To", "Department", "Created At"];
+            const escape  = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+            const lines   = [
+                headers.join(","),
+                ...rows.map(t => [
+                    t.ticket_number,
+                    t.title,
+                    t.created_by ?? "",
+                    t.priority,
+                    t.status,
+                    t.assigned_to_name ?? "",
+                    t.department_name ?? "",
+                    t.created_at ? new Date(t.created_at).toLocaleDateString() : "",
+                ].map(escape).join(",")),
+            ];
+
+            const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement("a");
+            a.href     = url;
+            a.download = `tickets-report-${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error("Export failed:", err);
+        }
+    };
+
     const handleFilter = (key) => {
         setActiveFilter(key);
         setPage(1);
-        loadTickets(1, key, search);
+        loadTickets(1, key, search, myTickets, deptFilter);
     };
 
     const handleSearch = (e) => {
         const q = e.target.value;
         setSearch(q);
         setPage(1);
-        loadTickets(1, activeFilter, q);
+        loadTickets(1, activeFilter, q, myTickets, deptFilter);
     };
 
     const handlePage = (pg) => {
         if (pg < 1 || pg > totalPages) return;
         setPage(pg);
-        loadTickets(pg, activeFilter, search);
+        loadTickets(pg, activeFilter, search, myTickets, deptFilter);
+    };
+
+    const handleMyTicketsToggle = () => {
+        const next = !myTickets;
+        setMyTickets(next);
+        setPage(1);
+        loadTickets(1, activeFilter, search, next, deptFilter);
+    };
+
+    const handleDeptChange = (e) => {
+        const dept = e.target.value;
+        setDeptFilter(dept);
+        setPage(1);
+        loadTickets(1, activeFilter, search, myTickets, dept);
     };
 
     const refreshAll = async () => {
@@ -735,7 +846,7 @@ function Tickets() {
                 </div>
                 <div className="tl-header-btns">
                     <button className="tl-btn-outline"><FiFilter size={14} /> Filter</button>
-                    <button className="tl-btn-outline"><FiDownload size={14} /> Export</button>
+                    <button className="tl-btn-outline" onClick={exportToCSV}><FiDownload size={14} /> Export</button>
                     <button className="tl-btn-primary" onClick={() => setShowModal(true)}>
                         <FiPlus size={14} /> New Ticket
                     </button>
@@ -804,6 +915,26 @@ function Tickets() {
                             </div>
 
                             <div className="tl-toolbar-right">
+                                {isAdmin && departments.length > 0 && (
+                                    <select
+                                        className="tl-dept-select"
+                                        value={deptFilter}
+                                        onChange={handleDeptChange}
+                                    >
+                                        <option value="">All Departments</option>
+                                        {departments.map(d => (
+                                            <option key={d.id} value={d.id}>{d.name}</option>
+                                        ))}
+                                    </select>
+                                )}
+                                {isAdmin && (
+                                    <div className="tl-my-tickets-wrap" onClick={handleMyTicketsToggle}>
+                                        <div className={`tl-toggle-track ${myTickets ? "on" : ""}`}>
+                                            <div className="tl-toggle-thumb" />
+                                        </div>
+                                        <span>My Tickets</span>
+                                    </div>
+                                )}
                                 <div className="tl-search-wrap">
                                     <FiSearch size={14} className="tl-search-icon" />
                                     <input
@@ -949,9 +1080,6 @@ function Tickets() {
                                                         onClick={() => navigate(`/tickets/${tk.id}`)}
                                                     />
                                                 ))}
-                                                <button className="kb-add-btn">
-                                                    <FiPlus size={13} /> Add Ticket
-                                                </button>
                                             </div>
                                         </div>
                                     );
@@ -973,7 +1101,11 @@ function Tickets() {
                                 <button
                                     key={qa.key}
                                     className="tl-qa-tile"
-                                    onClick={qa.key === "new" ? () => setShowModal(true) : undefined}
+                                    onClick={
+                                        qa.key === "new"    ? () => setShowModal(true) :
+                                        qa.key === "export" ? exportToCSV :
+                                        undefined
+                                    }
                                 >
                                     <span className="tl-qa-icon">{qa.icon}</span>
                                     {qa.label}

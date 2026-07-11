@@ -6,5 +6,7 @@ urlpatterns = [
     path('ticket-status/',      views.TicketStatusView.as_view(),      name='dashboard-ticket-status'),
     path('asset-distribution/', views.AssetDistributionView.as_view(), name='dashboard-asset-distribution'),
     path('recent-tickets/',     views.RecentTicketsView.as_view(),     name='dashboard-recent-tickets'),
-    path('recent-assets/',      views.RecentAssetsView.as_view(),      name='dashboard-recent-assets'),
+    path('recent-assets/',            views.RecentAssetsView.as_view(),           name='dashboard-recent-assets'),
+    path('dept-ticket-distribution/', views.DeptTicketDistributionView.as_view(), name='dashboard-dept-tickets'),
+    path('dept-asset-distribution/',  views.DeptAssetDistributionView.as_view(),  name='dashboard-dept-assets'),
 ]

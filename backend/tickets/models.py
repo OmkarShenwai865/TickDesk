@@ -87,10 +87,28 @@ class TicketAttachment(models.Model):
 
 
 class TicketComment(models.Model):
-    ticket     = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='comments')
-    author     = models.ForeignKey(
+    ticket        = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='comments')
+    author        = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, related_name='ticket_comments',
+    )
+    text          = models.TextField(blank=True)
+    file          = models.FileField(upload_to='comment_files/', null=True, blank=True)
+    original_name = models.CharField(max_length=255, blank=True)
+    created_at    = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"Comment on {self.ticket.ticket_number} by {self.author}"
+
+
+class TicketNote(models.Model):
+    ticket     = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='notes')
+    author     = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, related_name='ticket_notes',
     )
     text       = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -99,7 +117,7 @@ class TicketComment(models.Model):
         ordering = ['created_at']
 
     def __str__(self):
-        return f"Comment on {self.ticket.ticket_number} by {self.author}"
+        return f"Note on {self.ticket.ticket_number} by {self.author}"
 
 
 class TicketActivity(models.Model):

@@ -190,6 +190,14 @@
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 16px;
+    min-width: 0;
+}
+
+.tl-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
 }
 
 .tl-search-wrap {
@@ -213,7 +221,7 @@
     border-radius: 8px;
     background: #f9fafb;
     color: #374151;
-    width: 220px;
+    width: 160px;
     outline: none;
     transition: border-color 0.15s;
 }
@@ -225,12 +233,20 @@
 
 .tl-pills {
     display: flex;
-    gap: 6px;
+    gap: 4px;
     flex-wrap: nowrap;
+    overflow-x: auto;
+    flex-shrink: 1;
+    min-width: 0;
+    scrollbar-width: none;
+}
+
+.tl-pills::-webkit-scrollbar {
+    display: none;
 }
 
 .tl-pill {
-    padding: 5px 12px;
+    padding: 5px 10px;
     font-size: 12px;
     font-weight: 500;
     color: #374151;
@@ -254,6 +270,65 @@
 
 .tl-pill-active:hover {
     background: #1d4ed8;
+}
+
+.tl-dept-select {
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #f9fafb;
+    color: #374151;
+    outline: none;
+    cursor: pointer;
+    height: 30px;
+}
+
+.tl-dept-select:focus {
+    border-color: #2563eb;
+}
+
+.tl-my-tickets-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary, #6b7280);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+}
+
+.tl-toggle-track {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    border-radius: 999px;
+    background: #d1d5db;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.tl-toggle-track.on {
+    background: #2563eb;
+}
+
+.tl-toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    transition: left 0.2s;
+}
+
+.tl-toggle-track.on .tl-toggle-thumb {
+    left: 18px;
 }
 
 /* ===========================
@@ -979,6 +1054,30 @@
 .ntm-required {
     color: #ef4444;
     margin-left: 2px;
+}
+
+.ntm-ai-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 20px;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.15s;
+}
+.ntm-ai-badge:hover { opacity: 0.85; }
+.ntm-ai-loading {
+    background: #94a3b8 !important;
+    cursor: default;
+    animation: ntm-pulse 1.2s ease-in-out infinite;
+}
+@keyframes ntm-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.5; }
 }
 
 .ntm-input,

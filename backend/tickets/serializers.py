@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Ticket, TicketAttachment, TicketComment, TicketActivity
+from .models import Ticket, TicketAttachment, TicketComment, TicketActivity, TicketNote
 
 
 class TicketSerializer(serializers.ModelSerializer):
@@ -61,12 +61,14 @@ class TicketAttachmentSerializer(serializers.ModelSerializer):
 
 
 class TicketCommentSerializer(serializers.ModelSerializer):
-    author_name   = serializers.SerializerMethodField()
+    author_name     = serializers.SerializerMethodField()
     author_initials = serializers.SerializerMethodField()
+    file_url        = serializers.SerializerMethodField()
 
     class Meta:
         model  = TicketComment
-        fields = ['id', 'text', 'author', 'author_name', 'author_initials', 'created_at']
+        fields = ['id', 'text', 'author', 'author_name', 'author_initials',
+                  'file_url', 'original_name', 'created_at']
         read_only_fields = ['id', 'created_at']
 
     def get_author_name(self, obj):
@@ -78,6 +80,12 @@ class TicketCommentSerializer(serializers.ModelSerializer):
         name = self.get_author_name(obj)
         parts = name.split()
         return "".join(p[0] for p in parts[:2]).upper() if parts else "?"
+
+    def get_file_url(self, obj):
+        if not obj.file:
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.file.url) if request else obj.file.url
 
 
 class TicketActivitySerializer(serializers.ModelSerializer):
@@ -92,3 +100,23 @@ class TicketActivitySerializer(serializers.ModelSerializer):
         if obj.actor:
             return obj.actor.get_full_name() or obj.actor.username
         return "System"
+
+
+class TicketNoteSerializer(serializers.ModelSerializer):
+    author_name     = serializers.SerializerMethodField()
+    author_initials = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = TicketNote
+        fields = ['id', 'text', 'author', 'author_name', 'author_initials', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+    def get_author_name(self, obj):
+        if obj.author:
+            return obj.author.get_full_name() or obj.author.username
+        return "Unknown"
+
+    def get_author_initials(self, obj):
+        name  = self.get_author_name(obj)
+        parts = name.split()
+        return "".join(p[0] for p in parts[:2]).upper() if parts else "?"
