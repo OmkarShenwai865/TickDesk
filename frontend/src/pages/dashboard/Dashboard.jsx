@@ -222,10 +222,10 @@ function Dashboard() {
 
             {/* ── Summary Cards ── */}
             <section className="summary-grid">
-                <SummaryCard icon={<FiMonitor />}   title="Total Assets"  value={stats?.total_assets  ?? "—"} change="+12.5% from last month" iconColor="#2563eb" iconBg="#eff6ff" />
-                <SummaryCard icon={<FiClipboard />} title="Open Tickets"  value={stats?.open_tickets  ?? "—"} change="-8.3% from last month"  positive={false} iconColor="#16a34a" iconBg="#f0fdf4" />
-                <SummaryCard icon={<FiUsers />}     title="Users"         value={stats?.total_users   ?? "—"} change="+5.2% from last month"  iconColor="#7c3aed" iconBg="#f5f3ff" />
-                <SummaryCard icon={<FiLayers />}    title="Departments"   value={stats?.total_departments ?? "—"} change="+3.1% from last month" iconColor="#ea580c" iconBg="#fff7ed" />
+                <SummaryCard icon={<FiMonitor />}   title="Total Assets"  value={stats?.total_assets  ?? "—"} change={stats?.total_assets_delta ?? ""} iconColor="#2563eb" iconBg="#eff6ff" trend={stats?.total_assets_trend} />
+                <SummaryCard icon={<FiClipboard />} title="Open Tickets"  value={stats?.open_tickets  ?? "—"} change={stats?.open_tickets_delta ?? ""} positive={stats?.open_tickets_up ?? true} iconColor="#16a34a" iconBg="#f0fdf4" trend={stats?.open_tickets_trend} />
+                <SummaryCard icon={<FiUsers />}     title="Users"         value={stats?.total_users   ?? "—"} change={stats?.total_users_delta ?? ""} iconColor="#7c3aed" iconBg="#f5f3ff" trend={stats?.total_users_trend} />
+                <SummaryCard icon={<FiLayers />}    title="Departments"   value={stats?.total_departments ?? "—"} change={stats?.total_departments_delta ?? ""} iconColor="#ea580c" iconBg="#fff7ed" trend={stats?.total_departments_trend} />
             </section>
 
             {/* ── Main Body ── */}

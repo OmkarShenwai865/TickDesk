@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import api from "../../services/api";
+import Sparkline from "../../components/ui/Sparkline";
 import {
   FiCalendar, FiDownload, FiFileText, FiChevronDown,
   FiTrendingUp, FiTrendingDown, FiCheckCircle, FiFolder,
@@ -155,13 +156,16 @@ export default function Reports() {
           {/* Stat cards */}
           <div className="rpt-stats-row">
             {STAT_META.map(s => {
-              const val  = summary ? summary[s.key] : null;
-              const disp = val === null ? "—"
+              const val   = summary ? summary[s.key] : null;
+              const disp  = val === null ? "—"
                 : s.key === "sla_compliance" ? `${val}%`
                 : val.toLocaleString();
+              const delta = summary?.[`${s.key}_delta`];
+              const trend = summary?.[`${s.key}_trend`];
               const dir = s.trend === "auto"
                 ? (val !== null && val >= 90 ? "up" : "down")
-                : s.trend;
+                : (delta === "steady" ? "steady" : "up");
+              const trendLabel = s.trend === "auto" ? s.trendText : (delta || s.trendText);
               return (
                 <div key={s.label} className="rpt-stat-card">
                   <div className="rpt-stat-icon" style={{ background: s.bg }}>
@@ -173,10 +177,11 @@ export default function Reports() {
                   <div className="rpt-stat-body">
                     <p className="rpt-stat-label">{s.label}</p>
                     <p className="rpt-stat-value">{disp}</p>
-                    <p className={`rpt-stat-trend rpt-trend-${dir}`}>
-                      {dir === "up" ? <FiTrendingUp size={11} /> : <FiTrendingDown size={11} />}
-                      {dir === "up" ? "↑" : "↓"} {s.trendText}
+                    <p className={`rpt-stat-trend rpt-trend-${dir === "steady" ? "up" : dir}`}>
+                      {dir === "down" ? <FiTrendingDown size={11} /> : <FiTrendingUp size={11} />}
+                      {dir === "down" ? "↓" : dir === "steady" ? "→" : "↑"} {trendLabel}
                     </p>
+                    {trend?.length > 0 && <div style={{ marginTop: 6, width: 100 }}><Sparkline points={trend} color={s.color} /></div>}
                   </div>
                 </div>
               );

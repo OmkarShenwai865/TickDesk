@@ -1,4 +1,5 @@
 import Card from "./Card";
+import Sparkline from "./Sparkline";
 import "./SummaryCard.css";
 
 function SummaryCard({
@@ -9,6 +10,7 @@ function SummaryCard({
     positive = true,
     iconColor = "#2563eb",
     iconBg = "#eff6ff",
+    trend,
 }) {
     return (
         <Card className="summary-card">
@@ -32,6 +34,12 @@ function SummaryCard({
                 >
                     {change}
                 </span>
+
+                {trend?.length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                        <Sparkline points={trend} color={iconColor} />
+                    </div>
+                )}
 
             </div>
 

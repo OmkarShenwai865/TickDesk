@@ -7,13 +7,22 @@ import {
     FiZap,
     FiLayers,
     FiBarChart2,
-    FiMessageSquare,
+    FiGlobe,
     FiCpu,
     FiCheckCircle,
     FiClock,
     FiUsers,
 } from "react-icons/fi";
 import logoIcon from "../../assets/logo-icon.png";
+import shotTickets from "../../assets/screenshots/feat-tickets.png";
+import shotAssets from "../../assets/screenshots/feat-assets.png";
+import shotReports from "../../assets/screenshots/feat-reports.png";
+import shotUsers from "../../assets/screenshots/feat-users.png";
+import shotAi from "../../assets/screenshots/feat-ai.png";
+import shotPlatform from "../../assets/screenshots/feat-platform.png";
+import shotRegister from "../../assets/screenshots/step-register.png";
+import shotInvite from "../../assets/screenshots/step-invite.png";
+import shotDashboard from "../../assets/screenshots/step-dashboard.png";
 import "./Landing.css";
 
 const TRUST_LOGOS = ["HelioOps", "NorthGrid", "AtlasWare", "KiteStack", "Meridian", "Oakline"];
@@ -21,46 +30,67 @@ const TRUST_LOGOS = ["HelioOps", "NorthGrid", "AtlasWare", "KiteStack", "Meridia
 const FEATURES = [
     {
         title: "Ticket orchestration",
-        text: "Route, prioritize, and resolve requests with a workspace built for fast triage.",
+        text: "Log, prioritize, and track every request through Open → In Progress → Resolved with real status and priority breakdowns.",
         icon: FiZap,
         tone: "blue",
+        shot: shotTickets,
     },
     {
         title: "Asset visibility",
-        text: "Keep hardware, accessories, and ownership history visible across the company.",
+        text: "Every laptop, monitor, and device tracked by owner, department, and status — with a live distribution breakdown.",
         icon: FiLayers,
         tone: "violet",
+        shot: shotAssets,
     },
     {
         title: "Operational reporting",
-        text: "Track response times, backlog movement, and team output from one surface.",
+        text: "Ticket trends, SLA compliance, department load, and asset utilization computed from real activity, not guesswork.",
         icon: FiBarChart2,
         tone: "green",
-    },
-    {
-        title: "Knowledge capture",
-        text: "Turn recurring fixes into reusable articles your team can actually find.",
-        icon: FiMessageSquare,
-        tone: "amber",
+        shot: shotReports,
     },
     {
         title: "Role-based access",
-        text: "Separate admin control from agent and employee workflows without fragmenting the UI.",
+        text: "Admins, support agents, and employees each see exactly the workspace their role needs — nothing fragmented, nothing extra.",
         icon: FiShield,
         tone: "red",
+        shot: shotUsers,
     },
     {
-        title: "Automation ready",
-        text: "Standardize repetitive IT tasks so the desk spends more time resolving and less time clicking.",
+        title: "AI-assisted triage",
+        text: "New tickets get an instant AI-suggested priority from the title and description, so urgent issues never sit in a queue.",
         icon: FiCpu,
         tone: "cyan",
+        shot: shotAi,
+    },
+    {
+        title: "Multi-company oversight",
+        text: "A dedicated Master Admin view tracks every registered company, its growth, and its activity from one dashboard.",
+        icon: FiGlobe,
+        tone: "amber",
+        shot: shotPlatform,
     },
 ];
 
 const STEPS = [
-    { no: "01", title: "Create your workspace", text: "Set up your company, admin account, and operating structure in a few minutes." },
-    { no: "02", title: "Invite your team", text: "Bring in support agents and employees with role-based sign-in paths and controlled access." },
-    { no: "03", title: "Run support in one place", text: "Manage tickets, assets, and shared knowledge without bouncing between tools." },
+    {
+        no: "01",
+        title: "Create your workspace",
+        text: "Register your company and admin account — this becomes the root of your organization's tickets, assets, and team.",
+        shot: shotRegister,
+    },
+    {
+        no: "02",
+        title: "Invite your team",
+        text: "Send a secure setup link to agents and employees with their role and department pre-assigned — they set their own password on accept.",
+        shot: shotInvite,
+    },
+    {
+        no: "03",
+        title: "Run support in one place",
+        text: "Tickets, assets, users, and reports live on one dashboard — no switching between separate tools to see the full picture.",
+        shot: shotDashboard,
+    },
 ];
 
 const TESTIMONIALS = [
@@ -297,8 +327,11 @@ export default function Landing() {
                     </p>
                 </div>
                 <div className="features-grid">
-                    {FEATURES.map(({ title, text, icon: Icon, tone }) => (
+                    {FEATURES.map(({ title, text, icon: Icon, tone, shot }) => (
                         <article key={title} className="feat-card reveal">
+                            <div className="feat-shot">
+                                <img src={shot} alt={`${title} in TickDesk`} loading="lazy" />
+                            </div>
                             <div className={`feat-icon ${tone}`}>
                                 <Icon size={18} />
                             </div>
@@ -320,6 +353,9 @@ export default function Landing() {
                             <span className="step-no">{step.no}</span>
                             <h3>{step.title}</h3>
                             <p>{step.text}</p>
+                            <div className="step-shot">
+                                <img src={step.shot} alt={`${step.title} screen in TickDesk`} loading="lazy" />
+                            </div>
                         </article>
                     ))}
                 </div>

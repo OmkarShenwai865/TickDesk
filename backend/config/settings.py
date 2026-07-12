@@ -11,9 +11,13 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+from dotenv import load_dotenv
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+load_dotenv(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
@@ -45,6 +49,7 @@ INSTALLED_APPS = [
     'dashboard',
     'reports',
     'notifications',
+    'platform_admin',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
@@ -150,3 +155,21 @@ STATIC_URL = 'static/'
 
 MEDIA_URL  = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Email (SMTP) — set EMAIL_HOST_USER / EMAIL_HOST_PASSWORD in backend/.env
+# (an App Password, not your real Google account password).
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+if EMAIL_HOST_USER:
+    EMAIL_BACKEND      = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST         = 'smtp.gmail.com'
+    EMAIL_PORT         = 587
+    EMAIL_USE_TLS      = True
+    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+    DEFAULT_FROM_EMAIL  = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+else:
+    # No credentials configured yet — fall back to printing emails to the console.
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    DEFAULT_FROM_EMAIL = 'noreply@tickdesk.local'
+
+# Where the "a new company just registered" notification goes — set in backend/.env.
+PLATFORM_NOTIFY_EMAIL = os.environ.get('PLATFORM_NOTIFY_EMAIL', '')

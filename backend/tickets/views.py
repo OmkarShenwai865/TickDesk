@@ -134,6 +134,28 @@ def _auto_close_resolved(company):
         )
 
 
+def _last_6_month_starts(now):
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    months = []
+    cursor = month_start
+    for _ in range(6):
+        months.append(cursor)
+        if cursor.month == 1:
+            cursor = cursor.replace(year=cursor.year - 1, month=12)
+        else:
+            cursor = cursor.replace(month=cursor.month - 1)
+    months.reverse()
+    return months
+
+
+def _per_month_trend(qs, months, now):
+    trend = []
+    for i, m_start in enumerate(months):
+        m_end = months[i + 1] if i + 1 < len(months) else now
+        trend.append(qs.filter(created_at__gte=m_start, created_at__lt=m_end).count())
+    return trend
+
+
 class TicketStatsView(APIView):
     permission_classes = [IsCompanyMember]
 
@@ -145,12 +167,35 @@ class TicketStatsView(APIView):
             qs = _agent_qs(request.user)
         else:
             qs = Ticket.objects.filter(company=request.user.company, created_by=request.user)
+
+        now = timezone.now()
+        cutoff_30 = now - timedelta(days=30)
+        months = _last_6_month_starts(now)
+
+        def _delta(filtered_qs):
+            n = filtered_qs.filter(created_at__gte=cutoff_30).count()
+            return 'steady' if n == 0 else f'+{n} vs last month'
+
+        total_qs       = qs
+        open_qs        = qs.filter(status=Ticket.STATUS_OPEN)
+        in_progress_qs = qs.filter(status=Ticket.STATUS_IN_PROGRESS)
+        resolved_qs    = qs.filter(status=Ticket.STATUS_RESOLVED)
+        closed_qs      = qs.filter(status=Ticket.STATUS_CLOSED)
+
         return Response({
-            'total':       qs.count(),
-            'open':        qs.filter(status=Ticket.STATUS_OPEN).count(),
-            'in_progress': qs.filter(status=Ticket.STATUS_IN_PROGRESS).count(),
-            'resolved':    qs.filter(status=Ticket.STATUS_RESOLVED).count(),
-            'closed':      qs.filter(status=Ticket.STATUS_CLOSED).count(),
+            'total':       total_qs.count(),
+            'open':        open_qs.count(),
+            'in_progress': in_progress_qs.count(),
+            'resolved':    resolved_qs.count(),
+            'closed':      closed_qs.count(),
+            'total_delta':       _delta(total_qs),
+            'open_delta':        _delta(open_qs),
+            'in_progress_delta': _delta(in_progress_qs),
+            'resolved_delta':    _delta(resolved_qs),
+            'total_trend':       _per_month_trend(total_qs, months, now),
+            'open_trend':        _per_month_trend(open_qs, months, now),
+            'in_progress_trend': _per_month_trend(in_progress_qs, months, now),
+            'resolved_trend':    _per_month_trend(resolved_qs, months, now),
         })
 
 

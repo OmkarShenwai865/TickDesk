@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiUploadCloud, FiDownload, FiAlertOctagon } from "react-icons/fi";
+import api from "../../services/api";
 import "../settings/Settings.css";
 
 const systemStatus = [
@@ -15,15 +16,54 @@ const recentChanges = [
   { text: "New User Added",         meta: "Yesterday • System",      dot: "gray" },
 ];
 
+const EMPTY_FORM = {
+  orgName:    "",
+  email:      "",
+  website:    "",
+  timezone:   "GMT+0",
+  dateFormat: "MM/DD/YYYY",
+};
+
 export default function General() {
-  const [form, setForm] = useState({
-    orgName:    "Acme Corp IT",
-    email:      "support@acme.com",
-    website:    "https://acme-corp.com",
-    timezone:   "GMT+0",
-    dateFormat: "MM/DD/YYYY",
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState(null); // { type: "success" | "error", text }
+
+  const load = () => {
+    setLoading(true);
+    api.get("accounts/company/")
+      .then((r) => {
+        setForm({
+          orgName:    r.data.name || "",
+          email:      r.data.support_email || "",
+          website:    r.data.website || "",
+          timezone:   r.data.timezone || "GMT+0",
+          dateFormat: r.data.date_format || "MM/DD/YYYY",
+        });
+      })
+      .catch(() => setStatus({ type: "error", text: "Failed to load organisation settings." }))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, []);
+
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const handleSave = () => {
+    setSaving(true);
+    setStatus(null);
+    api.patch("accounts/company/", {
+      name:          form.orgName,
+      support_email: form.email,
+      website:       form.website,
+      timezone:      form.timezone,
+      date_format:   form.dateFormat,
+    })
+      .then(() => setStatus({ type: "success", text: "Settings saved." }))
+      .catch(() => setStatus({ type: "error", text: "Failed to save changes." }))
+      .finally(() => setSaving(false));
+  };
 
   return (
     <div className="st-page">
@@ -34,9 +74,16 @@ export default function General() {
             <h1 className="st-page-title">General Settings</h1>
             <p className="st-page-sub">Manage your organisation's identity, branding, and locale preferences.</p>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="st-btn-secondary">Reset</button>
-            <button className="st-btn-primary">Save Changes</button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {status && (
+              <span style={{ fontSize: 12, fontWeight: 600, color: status.type === "success" ? "#16a34a" : "#dc2626" }}>
+                {status.text}
+              </span>
+            )}
+            <button className="st-btn-secondary" onClick={load} disabled={loading || saving}>Reset</button>
+            <button className="st-btn-primary" onClick={handleSave} disabled={loading || saving}>
+              {saving ? "Saving…" : "Save Changes"}
+            </button>
           </div>
         </div>
 
@@ -90,8 +137,10 @@ export default function General() {
               </div>
             </div>
             <div className="st-form-footer">
-              <button className="st-btn-secondary">Cancel</button>
-              <button className="st-btn-primary">Save Changes</button>
+              <button className="st-btn-secondary" onClick={load} disabled={loading || saving}>Cancel</button>
+              <button className="st-btn-primary" onClick={handleSave} disabled={loading || saving}>
+                {saving ? "Saving…" : "Save Changes"}
+              </button>
             </div>
           </div>
         </div>

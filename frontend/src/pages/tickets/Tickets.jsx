@@ -2,6 +2,7 @@ import "./TicketList.css";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
+import Sparkline from "../../components/ui/Sparkline";
 
 import {
     FiFilter,
@@ -862,6 +863,8 @@ function Tickets() {
                     <div>
                         <p className="tl-stat-label">TOTAL TICKETS</p>
                         <p className="tl-stat-value">{stats?.total ?? "—"}</p>
+                        {stats?.total_delta && <p style={{ fontSize: 11, fontWeight: 600, color: "#16a34a", margin: "2px 0 0" }}>{stats.total_delta}</p>}
+                        {stats?.total_trend?.length > 0 && <div style={{ marginTop: 6, width: 100 }}><Sparkline points={stats.total_trend} color="#2563eb" /></div>}
                     </div>
                 </div>
                 <div className="tl-stat-card">
@@ -871,6 +874,8 @@ function Tickets() {
                     <div>
                         <p className="tl-stat-label">OPEN</p>
                         <p className="tl-stat-value">{stats?.open ?? "—"}</p>
+                        {stats?.open_delta && <p style={{ fontSize: 11, fontWeight: 600, color: "#16a34a", margin: "2px 0 0" }}>{stats.open_delta}</p>}
+                        {stats?.open_trend?.length > 0 && <div style={{ marginTop: 6, width: 100 }}><Sparkline points={stats.open_trend} color="#ea580c" /></div>}
                     </div>
                 </div>
                 <div className="tl-stat-card">
@@ -880,6 +885,8 @@ function Tickets() {
                     <div>
                         <p className="tl-stat-label">IN PROGRESS</p>
                         <p className="tl-stat-value">{stats?.in_progress ?? "—"}</p>
+                        {stats?.in_progress_delta && <p style={{ fontSize: 11, fontWeight: 600, color: "#16a34a", margin: "2px 0 0" }}>{stats.in_progress_delta}</p>}
+                        {stats?.in_progress_trend?.length > 0 && <div style={{ marginTop: 6, width: 100 }}><Sparkline points={stats.in_progress_trend} color="#16a34a" /></div>}
                     </div>
                 </div>
                 <div className="tl-stat-card">
@@ -889,6 +896,8 @@ function Tickets() {
                     <div>
                         <p className="tl-stat-label">RESOLVED</p>
                         <p className="tl-stat-value">{stats?.resolved ?? "—"}</p>
+                        {stats?.resolved_delta && <p style={{ fontSize: 11, fontWeight: 600, color: "#16a34a", margin: "2px 0 0" }}>{stats.resolved_delta}</p>}
+                        {stats?.resolved_trend?.length > 0 && <div style={{ marginTop: 6, width: 100 }}><Sparkline points={stats.resolved_trend} color="#6b7280" /></div>}
                     </div>
                 </div>
             </div>

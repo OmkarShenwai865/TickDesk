@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "../../services/api";
+import Sparkline from "../../components/ui/Sparkline";
 import "./Assets.css";
 
 import {
@@ -212,9 +213,21 @@ function AddAssetModal({ onClose, onSuccess, defaultDepartment = "" }) {
                                 }}
                             >
                                 <option value="">Unassigned</option>
-                                {users.map(u => (
-                                    <option key={u.id} value={u.id}>{u.name}</option>
-                                ))}
+                                {[
+                                    { role: "admin",    label: "Admin" },
+                                    { role: "agent",    label: "Support Agents" },
+                                    { role: "employee", label: "Employees" },
+                                ].map(({ role, label }) => {
+                                    const group = users.filter(u => u.role === role);
+                                    if (!group.length) return null;
+                                    return (
+                                        <optgroup key={role} label={label}>
+                                            {group.map(u => (
+                                                <option key={u.id} value={u.id}>{u.name}</option>
+                                            ))}
+                                        </optgroup>
+                                    );
+                                })}
                             </select>
                         </div>
                         <div className="ast-form-row">
@@ -356,10 +369,10 @@ function Assets() {
     };
 
     const statCards = [
-        { Icon: FiMonitor,     label: "TOTAL ASSETS", value: stats?.total       ?? "—", color: "#2563eb", bg: "#eff6ff" },
-        { Icon: FiUser,        label: "ASSIGNED",     value: stats?.assigned    ?? "—", color: "#7c3aed", bg: "#f5f3ff" },
-        { Icon: FiCheckCircle, label: "AVAILABLE",    value: stats?.available   ?? "—", color: "#16a34a", bg: "#f0fdf4" },
-        { Icon: FiTool,        label: "MAINTENANCE",  value: stats?.maintenance ?? "—", color: "#ea580c", bg: "#fff7ed" },
+        { Icon: FiMonitor,     label: "TOTAL ASSETS", value: stats?.total       ?? "—", color: "#2563eb", bg: "#eff6ff", delta: stats?.total_delta,       trend: stats?.total_trend },
+        { Icon: FiUser,        label: "ASSIGNED",     value: stats?.assigned    ?? "—", color: "#7c3aed", bg: "#f5f3ff", delta: stats?.assigned_delta,    trend: stats?.assigned_trend },
+        { Icon: FiCheckCircle, label: "AVAILABLE",    value: stats?.available   ?? "—", color: "#16a34a", bg: "#f0fdf4", delta: stats?.available_delta,   trend: stats?.available_trend },
+        { Icon: FiTool,        label: "MAINTENANCE",  value: stats?.maintenance ?? "—", color: "#ea580c", bg: "#fff7ed", delta: stats?.maintenance_delta, trend: stats?.maintenance_trend },
     ];
 
     const start = (page - 1) * PAGE_SIZE + 1;
@@ -396,7 +409,7 @@ function Assets() {
 
             {/* ── Stat cards ── */}
             <section className="assets-stats">
-                {statCards.map(({ Icon, label, value, color, bg }) => (
+                {statCards.map(({ Icon, label, value, color, bg, delta, trend }) => (
                     <div key={label} className="stat-card">
                         <div className="stat-icon-wrap" style={{ background: bg, color }}>
                             <Icon size={20} />
@@ -404,6 +417,8 @@ function Assets() {
                         <div className="stat-text">
                             <p className="stat-label">{label}</p>
                             <p className="stat-value">{value}</p>
+                            {delta && <p style={{ fontSize: 11, fontWeight: 600, color: "#16a34a", margin: "2px 0 0" }}>{delta}</p>}
+                            {trend?.length > 0 && <div style={{ marginTop: 6 }}><Sparkline points={trend} color={color} /></div>}
                         </div>
                     </div>
                 ))}

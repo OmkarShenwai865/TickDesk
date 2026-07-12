@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../../services/api";
+import Sparkline from "../../components/ui/Sparkline";
 import "./Users.css";
 import {
     FiUsers,
@@ -1155,23 +1156,31 @@ function Users() {
 
             {/* ── Stat Cards ── */}
             <section className="usr-stats">
-                {STAT_META.map(({ Icon, label, key, color, bg }) => (
-                    <div key={key} className="usr-stat-card">
-                        <div className="usr-stat-icon" style={{ background: bg, color }}>
-                            <Icon size={20} />
-                        </div>
-                        <div className="usr-stat-text">
-                            <p className="usr-stat-label">{label}</p>
-                            <p className="usr-stat-value">
-                                {stats ? stats[key].toLocaleString() : "—"}
-                            </p>
-                            <div className="usr-trend usr-trend-neutral">
-                                <span className="usr-trend-arrow">→</span>
-                                <span className="usr-trend-pct">Live data</span>
+                {STAT_META.map(({ Icon, label, key, color, bg }) => {
+                    const delta = stats?.[`${key}_delta`];
+                    const trend = stats?.[`${key}_trend`];
+                    const isSteady = delta === "steady";
+                    return (
+                        <div key={key} className="usr-stat-card">
+                            <div className="usr-stat-icon" style={{ background: bg, color }}>
+                                <Icon size={20} />
+                            </div>
+                            <div className="usr-stat-text">
+                                <p className="usr-stat-label">{label}</p>
+                                <p className="usr-stat-value">
+                                    {stats ? stats[key].toLocaleString() : "—"}
+                                </p>
+                                {delta && (
+                                    <div className={`usr-trend ${isSteady ? "usr-trend-neutral" : "usr-trend-up"}`}>
+                                        <span className="usr-trend-arrow">{isSteady ? "→" : "↑"}</span>
+                                        <span className="usr-trend-pct">{delta}</span>
+                                    </div>
+                                )}
+                                {trend?.length > 0 && <div style={{ marginTop: 6, width: 100 }}><Sparkline points={trend} color={color} /></div>}
                             </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </section>
 
             {/* ── Body ── */}

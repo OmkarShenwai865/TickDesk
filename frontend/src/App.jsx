@@ -16,12 +16,19 @@ import Users from "./pages/users/Users";
 import Departments from "./pages/departments/Departments";
 import Reports from "./pages/reports/Reports";
 import KnowledgeBase from "./pages/knowledge-base/KnowledgeBase";
+import Profile from "./pages/profile/Profile";
+import Platform from "./pages/platform/Platform";
+import PlatformDashboard from "./pages/platform/PlatformDashboard";
+import CompanyDetail from "./pages/platform/CompanyDetail";
+import Announcements from "./pages/platform/Announcements";
+import PlatformReports from "./pages/platform/Reports";
 import Settings from "./pages/settings/Settings";
 import General from "./pages/settings/General";
 import AccessSecurity from "./pages/settings/AccessSecurity";
-import Helpdesk from "./pages/settings/Helpdesk";
-import Notifications from "./pages/settings/Notifications";
-import SystemSettings from "./pages/settings/System";
+// Hidden until these have real backend endpoints behind them:
+// import Helpdesk from "./pages/settings/Helpdesk";
+// import Notifications from "./pages/settings/Notifications";
+// import SystemSettings from "./pages/settings/System";
 
 function App() {
     return (
@@ -52,13 +59,20 @@ function App() {
                     <Route path="/departments"  element={<ProtectedRoute roles={["admin"]}><Departments /></ProtectedRoute>} />
                     <Route path="/reports"      element={<ProtectedRoute roles={["admin","agent"]}><Reports /></ProtectedRoute>} />
                     <Route path="/knowledge-base" element={<KnowledgeBase />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/platform" element={<ProtectedRoute roles={["superadmin"]}><PlatformDashboard /></ProtectedRoute>} />
+                    <Route path="/platform/companies" element={<ProtectedRoute roles={["superadmin"]}><Platform /></ProtectedRoute>} />
+                    <Route path="/platform/companies/:id" element={<ProtectedRoute roles={["superadmin"]}><CompanyDetail /></ProtectedRoute>} />
+                    <Route path="/platform/announcements" element={<ProtectedRoute roles={["superadmin"]}><Announcements /></ProtectedRoute>} />
+                    <Route path="/platform/reports" element={<ProtectedRoute roles={["superadmin"]}><PlatformReports /></ProtectedRoute>} />
                     <Route path="/settings"     element={<ProtectedRoute roles={["admin"]}><Settings /></ProtectedRoute>}>
                       <Route index              element={<Navigate to="/settings/general" replace />} />
                       <Route path="general"         element={<General />} />
                       <Route path="access-security" element={<AccessSecurity />} />
-                      <Route path="helpdesk"        element={<Helpdesk />} />
-                      <Route path="notifications"   element={<Notifications />} />
-                      <Route path="system"          element={<SystemSettings />} />
+                      {/* Hidden until these have real backend endpoints behind them: */}
+                      {/* <Route path="helpdesk"      element={<Helpdesk />} /> */}
+                      {/* <Route path="notifications" element={<Notifications />} /> */}
+                      {/* <Route path="system"        element={<SystemSettings />} /> */}
                     </Route>
                 </Route>
             </Routes>

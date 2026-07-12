@@ -2,6 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Count
+from django.utils import timezone
+from datetime import timedelta
 
 from .models import Asset, AssetActivity
 from .serializers import AssetSerializer
@@ -19,16 +21,59 @@ _CATEGORY_COLORS = {
 }
 
 
+def _last_6_month_starts(now):
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    months = []
+    cursor = month_start
+    for _ in range(6):
+        months.append(cursor)
+        if cursor.month == 1:
+            cursor = cursor.replace(year=cursor.year - 1, month=12)
+        else:
+            cursor = cursor.replace(month=cursor.month - 1)
+    months.reverse()
+    return months
+
+
+def _per_month_trend(qs, months, now):
+    trend = []
+    for i, m_start in enumerate(months):
+        m_end = months[i + 1] if i + 1 < len(months) else now
+        trend.append(qs.filter(created_at__gte=m_start, created_at__lt=m_end).count())
+    return trend
+
+
 class AssetStatsView(APIView):
     permission_classes = [IsCompanyMember]
 
     def get(self, request):
         qs = Asset.objects.filter(company=request.user.company)
+        now = timezone.now()
+        cutoff_30 = now - timedelta(days=30)
+        months = _last_6_month_starts(now)
+
+        def _delta(filtered_qs):
+            n = filtered_qs.filter(created_at__gte=cutoff_30).count()
+            return 'steady' if n == 0 else f'+{n} vs last month'
+
+        total_qs       = qs
+        assigned_qs    = qs.filter(status=Asset.STATUS_ASSIGNED)
+        available_qs   = qs.filter(status=Asset.STATUS_AVAILABLE)
+        maintenance_qs = qs.filter(status=Asset.STATUS_MAINTENANCE)
+
         return Response({
-            'total':       qs.count(),
-            'assigned':    qs.filter(status=Asset.STATUS_ASSIGNED).count(),
-            'available':   qs.filter(status=Asset.STATUS_AVAILABLE).count(),
-            'maintenance': qs.filter(status=Asset.STATUS_MAINTENANCE).count(),
+            'total':       total_qs.count(),
+            'assigned':    assigned_qs.count(),
+            'available':   available_qs.count(),
+            'maintenance': maintenance_qs.count(),
+            'total_delta':       _delta(total_qs),
+            'assigned_delta':    _delta(assigned_qs),
+            'available_delta':   _delta(available_qs),
+            'maintenance_delta': _delta(maintenance_qs),
+            'total_trend':       _per_month_trend(total_qs, months, now),
+            'assigned_trend':    _per_month_trend(assigned_qs, months, now),
+            'available_trend':   _per_month_trend(available_qs, months, now),
+            'maintenance_trend': _per_month_trend(maintenance_qs, months, now),
         })
 
 

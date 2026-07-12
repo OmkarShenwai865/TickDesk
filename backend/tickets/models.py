@@ -29,7 +29,7 @@ class Ticket(models.Model):
     ]
 
     company       = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='tickets')
-    ticket_number = models.CharField(max_length=20, unique=True, editable=False)
+    ticket_number = models.CharField(max_length=20, editable=False)
     title         = models.CharField(max_length=500)
     description   = models.TextField(blank=True)
     priority      = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default=PRIORITY_MEDIUM)
@@ -51,6 +51,7 @@ class Ticket(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        unique_together = [['company', 'ticket_number']]
 
     def save(self, *args, **kwargs):
         if not self.ticket_number:

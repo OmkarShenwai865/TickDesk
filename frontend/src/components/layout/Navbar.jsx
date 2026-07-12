@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
     FiBell, FiSearch, FiChevronDown, FiHelpCircle,
     FiUser, FiMail, FiShield, FiLogOut, FiSettings,
-    FiTag, FiCheckCircle, FiMessageSquare, FiBox,
+    FiTag, FiCheckCircle, FiMessageSquare, FiBox, FiBriefcase,
 } from "react-icons/fi";
 import api from "../../services/api";
 import "./Navbar.css";
@@ -16,6 +16,11 @@ const PAGE_TITLES = {
     "/departments":    "Departments",
     "/reports":        "Reports",
     "/knowledge-base": "Knowledge Base",
+    "/profile":        "My Profile",
+    "/platform":               "Dashboard",
+    "/platform/companies":     "Companies",
+    "/platform/announcements":"Announcements",
+    "/platform/reports":       "Reports",
     "/settings":       "Settings",
 };
 
@@ -23,6 +28,7 @@ function getTitle(pathname) {
     if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
     if (pathname.startsWith("/tickets/")) return "Ticket Detail";
     if (pathname.startsWith("/assets/"))  return "Asset Detail";
+    if (pathname.startsWith("/platform/companies/")) return "Company Detail";
     if (pathname.startsWith("/settings")) return "Settings";
     return "TickDesk";
 }
@@ -35,16 +41,18 @@ function avatarInitials(firstName, lastName, username) {
 }
 
 const NOTIF_ICON = {
-    ticket_assigned: <FiTag size={14} />,
-    ticket_status:   <FiCheckCircle size={14} />,
-    ticket_comment:  <FiMessageSquare size={14} />,
-    asset_assigned:  <FiBox size={14} />,
+    ticket_assigned:    <FiTag size={14} />,
+    ticket_status:      <FiCheckCircle size={14} />,
+    ticket_comment:     <FiMessageSquare size={14} />,
+    asset_assigned:     <FiBox size={14} />,
+    company_registered: <FiBriefcase size={14} />,
 };
 const NOTIF_COLOR = {
-    ticket_assigned: "#3b82f6",
-    ticket_status:   "#22c55e",
-    ticket_comment:  "#f59e0b",
-    asset_assigned:  "#6366f1",
+    ticket_assigned:    "#3b82f6",
+    ticket_status:      "#22c55e",
+    ticket_comment:     "#f59e0b",
+    asset_assigned:     "#6366f1",
+    company_registered: "#2563eb",
 };
 
 function Navbar() {
@@ -255,6 +263,9 @@ function Navbar() {
                             </div>
                             <div className="pd-divider" />
                             <div className="pd-actions">
+                                <button className="pd-action-btn" onClick={() => { navigate("/profile"); setOpen(false); }}>
+                                    <FiUser size={14} /> My Profile
+                                </button>
                                 {canOpenSettings && (
                                     <button className="pd-action-btn" onClick={() => { navigate("/settings"); setOpen(false); }}>
                                         <FiSettings size={14} /> Settings

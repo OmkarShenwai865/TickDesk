@@ -2,11 +2,34 @@ from datetime import date, timedelta
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db.models import Count
+from django.utils import timezone
 
 from accounts.models import User
 from assets.models import Asset
 from tickets.models import Ticket
 from dashboard.permissions import IsCompanyAdmin, IsAgentOrAdmin
+
+
+def _last_6_month_starts(now):
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    months = []
+    cursor = month_start
+    for _ in range(6):
+        months.append(cursor)
+        if cursor.month == 1:
+            cursor = cursor.replace(year=cursor.year - 1, month=12)
+        else:
+            cursor = cursor.replace(month=cursor.month - 1)
+    months.reverse()
+    return months
+
+
+def _per_month_trend(qs, date_field, months, now):
+    trend = []
+    for i, m_start in enumerate(months):
+        m_end = months[i + 1] if i + 1 < len(months) else now
+        trend.append(qs.filter(**{f'{date_field}__gte': m_start, f'{date_field}__lt': m_end}).count())
+    return trend
 
 AVATAR_COLORS = [
     '#2563eb', '#7c3aed', '#16a34a', '#ea580c',
@@ -49,13 +72,38 @@ class ReportsSummaryView(APIView):
         util_pct = round(assigned / total_a * 100) if total_a else 0
 
         users = User.objects.filter(company=company)
+        active_users_qs = users.filter(status='active')
+
+        now = timezone.now()
+        cutoff_30 = now - timedelta(days=30)
+        months = _last_6_month_starts(now)
+
+        def _delta(filtered_qs, date_field):
+            n = filtered_qs.filter(**{f'{date_field}__gte': cutoff_30}).count()
+            return 'steady' if n == 0 else f'+{n} vs last month'
+
+        sla_trend = []
+        for i, m_start in enumerate(months):
+            m_end = months[i + 1] if i + 1 < len(months) else now
+            bucket = tickets.filter(created_at__gte=m_start, created_at__lt=m_end)
+            b_total = bucket.count()
+            b_resolved = bucket.filter(status__in=['resolved', 'closed']).count()
+            sla_trend.append(round(b_resolved / b_total * 100) if b_total else 0)
+
         return Response({
             'total_tickets':     total_t,
             'assets_managed':    total_a,
-            'active_users':      users.filter(status='active').count() if not _is_agent(request) else None,
+            'active_users':      active_users_qs.count() if not _is_agent(request) else None,
             'sla_compliance':    sla_pct,
             'resolution_rate':   sla_pct,
             'asset_utilization': util_pct,
+            'total_tickets_delta':  _delta(tickets, 'created_at'),
+            'assets_managed_delta': _delta(assets, 'created_at'),
+            'active_users_delta':   _delta(active_users_qs, 'date_joined') if not _is_agent(request) else None,
+            'total_tickets_trend':  _per_month_trend(tickets, 'created_at', months, now),
+            'assets_managed_trend': _per_month_trend(assets, 'created_at', months, now),
+            'active_users_trend':   _per_month_trend(active_users_qs, 'date_joined', months, now) if not _is_agent(request) else None,
+            'sla_compliance_trend': sla_trend,
         })
 
 

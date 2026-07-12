@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import api from "../../services/api";
+import Sparkline from "../../components/ui/Sparkline";
 import {
   FiGrid,
   FiUsers,
@@ -829,10 +830,10 @@ export default function Departments() {
   const criticalDash = donutC * criticalPct;
 
   const statCards = [
-    { Icon: FiGrid,        label: "TOTAL DEPARTMENTS",  value: stats?.total_departments  ?? "—", note: "",          noteColor: "#2563eb", color: "#2563eb", bg: "#eff6ff" },
-    { Icon: FiUsers,       label: "TOTAL EMPLOYEES",    value: stats?.total_employees    ?? "—", note: "",          noteColor: "#16a34a", color: "#16a34a", bg: "#f0fdf4" },
-    { Icon: FiCheckCircle, label: "ACTIVE DEPARTMENTS", value: stats?.active_departments ?? "—", note: "All active",noteColor: "#16a34a", color: "#16a34a", bg: "#f0fdf4" },
-    { Icon: FiAlertCircle, label: "OPEN TICKETS",       value: stats?.open_tickets       ?? "—", note: "",          noteColor: "#dc2626", color: "#ea580c", bg: "#fff7ed" },
+    { Icon: FiGrid,        label: "TOTAL DEPARTMENTS",  value: stats?.total_departments  ?? "—", noteColor: "#16a34a", color: "#2563eb", bg: "#eff6ff", trend: stats?.total_departments_trend,  note: stats?.total_departments_delta },
+    { Icon: FiUsers,       label: "TOTAL EMPLOYEES",    value: stats?.total_employees    ?? "—", noteColor: "#16a34a", color: "#16a34a", bg: "#f0fdf4", trend: stats?.total_employees_trend,    note: stats?.total_employees_delta },
+    { Icon: FiCheckCircle, label: "ACTIVE DEPARTMENTS", value: stats?.active_departments ?? "—", noteColor: "#16a34a", color: "#16a34a", bg: "#f0fdf4", trend: stats?.active_departments_trend, note: stats?.active_departments_delta },
+    { Icon: FiAlertCircle, label: "OPEN TICKETS",       value: stats?.open_tickets       ?? "—", noteColor: "#16a34a", color: "#ea580c", bg: "#fff7ed", trend: stats?.open_tickets_trend,       note: stats?.open_tickets_delta },
   ];
 
   return (
@@ -861,6 +862,7 @@ export default function Departments() {
               <p className="dep-stat-label">{s.label}</p>
               <p className="dep-stat-value">{s.value}</p>
               {s.note && <p className="dep-stat-note" style={{ color: s.noteColor }}>{s.note}</p>}
+              {s.trend?.length > 0 && <div style={{ marginTop: 6, width: 100 }}><Sparkline points={s.trend} color={s.color} /></div>}
             </div>
           </div>
         ))}

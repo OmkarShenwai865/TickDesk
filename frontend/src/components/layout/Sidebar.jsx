@@ -9,8 +9,11 @@ import {
     FiLayers,
     FiBarChart2,
     FiBookOpen,
+    FiUser,
     FiSettings,
     FiLogOut,
+    FiGlobe,
+    FiSend,
 } from "react-icons/fi";
 
 import "./Sidebar.css";
@@ -24,6 +27,11 @@ const menuItems = [
     { name: "Departments",  path: "/departments",  icon: FiLayers,   roles: ["admin"] },
     { name: "Reports",      path: "/reports",      icon: FiBarChart2,roles: ["admin", "agent"] },
     { name: "Knowledge Base",path: "/knowledge-base",icon: FiBookOpen,roles: ["admin", "agent", "employee"] },
+    { name: "Dashboard",      path: "/platform",               icon: FiGrid,      roles: ["superadmin"] },
+    { name: "Companies",      path: "/platform/companies",     icon: FiGlobe,     roles: ["superadmin"] },
+    { name: "Announcements",  path: "/platform/announcements", icon: FiSend,      roles: ["superadmin"] },
+    { name: "Reports",        path: "/platform/reports",       icon: FiBarChart2, roles: ["superadmin"] },
+    { name: "Profile",      path: "/profile",      icon: FiUser,     roles: ["agent", "employee", "superadmin"] },
     { name: "Settings",     path: "/settings",     icon: FiSettings, roles: ["admin"] },
 ];
 
@@ -83,6 +91,7 @@ function Sidebar() {
 
                                 <NavLink
                                     to={item.path}
+                                    end={item.path === "/platform"}
                                     className={({ isActive }) =>
                                         isActive
                                             ? "nav-link active"

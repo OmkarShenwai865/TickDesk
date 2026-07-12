@@ -2,6 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Count, Q
+from django.utils import timezone
+from datetime import timedelta
 
 from .models import Department, User
 from .serializers import DepartmentListSerializer, DepartmentDetailSerializer
@@ -9,6 +11,28 @@ from dashboard.permissions import IsCompanyAdmin, IsCompanyMember
 from tickets.models import Ticket
 
 PAGE_SIZE = 10
+
+
+def _last_6_month_starts(now):
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    months = []
+    cursor = month_start
+    for _ in range(6):
+        months.append(cursor)
+        if cursor.month == 1:
+            cursor = cursor.replace(year=cursor.year - 1, month=12)
+        else:
+            cursor = cursor.replace(month=cursor.month - 1)
+    months.reverse()
+    return months
+
+
+def _per_month_trend(qs, date_field, months, now):
+    trend = []
+    for i, m_start in enumerate(months):
+        m_end = months[i + 1] if i + 1 < len(months) else now
+        trend.append(qs.filter(**{f'{date_field}__gte': m_start, f'{date_field}__lt': m_end}).count())
+    return trend
 
 
 def _dept_qs(company):
@@ -29,11 +53,31 @@ class DepartmentStatsView(APIView):
 
     def get(self, request):
         company = request.user.company
+        now = timezone.now()
+        cutoff_30 = now - timedelta(days=30)
+        months = _last_6_month_starts(now)
+
+        def _delta(filtered_qs, date_field):
+            n = filtered_qs.filter(**{f'{date_field}__gte': cutoff_30}).count()
+            return 'steady' if n == 0 else f'+{n} vs last month'
+
+        depts_qs    = Department.objects.filter(company=company)
+        users_qs    = User.objects.filter(company=company)
+        open_tix_qs = Ticket.objects.filter(company=company, status=Ticket.STATUS_OPEN)
+
         return Response({
-            'total_departments':  Department.objects.filter(company=company).count(),
-            'total_employees':    User.objects.filter(company=company).count(),
-            'active_departments': Department.objects.filter(company=company).count(),
-            'open_tickets':       Ticket.objects.filter(company=company, status=Ticket.STATUS_OPEN).count(),
+            'total_departments':  depts_qs.count(),
+            'total_employees':    users_qs.count(),
+            'active_departments': depts_qs.count(),
+            'open_tickets':       open_tix_qs.count(),
+            'total_departments_delta':  _delta(depts_qs, 'created_at'),
+            'total_employees_delta':    _delta(users_qs, 'date_joined'),
+            'active_departments_delta': _delta(depts_qs, 'created_at'),
+            'open_tickets_delta':       _delta(open_tix_qs, 'created_at'),
+            'total_departments_trend':  _per_month_trend(depts_qs, 'created_at', months, now),
+            'total_employees_trend':    _per_month_trend(users_qs, 'date_joined', months, now),
+            'active_departments_trend': _per_month_trend(depts_qs, 'created_at', months, now),
+            'open_tickets_trend':       _per_month_trend(open_tix_qs, 'created_at', months, now),
         })
 
 

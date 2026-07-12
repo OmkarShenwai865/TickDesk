@@ -6,6 +6,7 @@ import logoIcon from "../../assets/logo-icon.png";
 import "../../styles/Login.css";
 
 function defaultPathForRole(role) {
+    if (role === "superadmin") return "/platform";
     return role === "admin" ? "/dashboard" : "/tickets";
 }
 

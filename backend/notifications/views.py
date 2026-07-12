@@ -1,9 +1,9 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from django.utils.timesince import timesince
 
-from dashboard.permissions import IsCompanyMember
 from .models import Notification
 
 
@@ -21,7 +21,7 @@ def _serialize(n):
 
 
 class NotificationListView(APIView):
-    permission_classes = [IsCompanyMember]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         qs = Notification.objects.filter(recipient=request.user)[:30]
@@ -33,7 +33,7 @@ class NotificationListView(APIView):
 
 
 class NotificationMarkReadView(APIView):
-    permission_classes = [IsCompanyMember]
+    permission_classes = [IsAuthenticated]
 
     def patch(self, request, pk):
         try:
@@ -46,7 +46,7 @@ class NotificationMarkReadView(APIView):
 
 
 class NotificationMarkAllReadView(APIView):
-    permission_classes = [IsCompanyMember]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)

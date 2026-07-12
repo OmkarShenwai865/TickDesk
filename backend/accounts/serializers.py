@@ -1,7 +1,33 @@
 from rest_framework import serializers
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import URLValidator
 from django.db.models import Count, Q
-from .models import Department
+from .models import Department, Company
 from assets.models import Asset
+
+
+class CompanySerializer(serializers.ModelSerializer):
+    # Plain CharField so we can normalize (prepend https://) before Django's
+    # URL validator runs, instead of the auto-generated URLField rejecting
+    # bare domains like "www.example.com" outright.
+    website = serializers.CharField(required=False, allow_blank=True)
+
+    class Meta:
+        model  = Company
+        fields = ['id', 'name', 'support_email', 'website', 'timezone', 'date_format']
+        read_only_fields = ['id']
+
+    def validate_website(self, value):
+        value = value.strip()
+        if not value:
+            return value
+        if not value.startswith(('http://', 'https://')):
+            value = f'https://{value}'
+        try:
+            URLValidator()(value)
+        except DjangoValidationError:
+            raise serializers.ValidationError('Enter a valid URL.')
+        return value
 
 
 class DepartmentListSerializer(serializers.ModelSerializer):

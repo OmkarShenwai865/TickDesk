@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   FiShield, FiKey, FiUsers, FiCheck, FiX,
-  FiMoreVertical, FiPlus, FiLock, FiActivity,
+  FiMoreVertical, FiPlus, FiActivity,
 } from "react-icons/fi";
 import "../settings/Settings.css";
 
@@ -26,11 +26,11 @@ const permissions = [
   { label: "View Knowledge Base", admin: true,  agent: true,  emp: true  },
 ];
 
-const apiKeys = [
-  { name: "Production Webhook",  status: "Active",  cls: "st-badge-green", created: "Oct 12, 2023" },
-  { name: "Staging Integration", status: "Active",  cls: "st-badge-green", created: "Nov 04, 2023" },
-  { name: "Legacy Reporter",     status: "Expired", cls: "st-badge-red",   created: "Jan 15, 2023" },
-];
+// const apiKeys = [ // unused while the API Keys section is hidden
+//   { name: "Production Webhook",  status: "Active",  cls: "st-badge-green", created: "Oct 12, 2023" },
+//   { name: "Staging Integration", status: "Active",  cls: "st-badge-green", created: "Nov 04, 2023" },
+//   { name: "Legacy Reporter",     status: "Expired", cls: "st-badge-red",   created: "Jan 15, 2023" },
+// ];
 
 const securityActivity = [
   { text: "API Key Created",      meta: "New key 'Production Webhook' generated · 2h ago",  dot: "#6b7280" },
@@ -39,12 +39,14 @@ const securityActivity = [
 ];
 
 export default function AccessSecurity() {
-  const [tfa, setTfa]       = useState(true);
-  const [mfa, setMfa]       = useState(true);
-  const [defRole, setDefRole] = useState("Employee");
-  const [passPolicy, setPassPolicy] = useState("Min 8 characters");
-  const [sessionTimeout, setSessionTimeout] = useState("1 hour");
-  const [inviteExpiry, setInviteExpiry] = useState("48");
+  // Hidden until Authentication & Access Policies / API Keys are backed by
+  // a real endpoint — these toggles/selects currently don't persist anything.
+  // const [tfa, setTfa]       = useState(true);
+  // const [mfa, setMfa]       = useState(true);
+  // const [defRole, setDefRole] = useState("Employee");
+  // const [passPolicy, setPassPolicy] = useState("Min 8 characters");
+  // const [sessionTimeout, setSessionTimeout] = useState("1 hour");
+  // const [inviteExpiry, setInviteExpiry] = useState("48");
 
   return (
     <div className="st-page">
@@ -138,6 +140,7 @@ export default function AccessSecurity() {
         </div>
 
         {/* ── Section 3: Auth & Access Policies ────────────────────────── */}
+        {/* Hidden — these toggles/selects don't persist to any backend yet.
         <div className="st-card">
           <div className="st-card-header">
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -146,7 +149,6 @@ export default function AccessSecurity() {
             </div>
           </div>
           <div className="st-card-body">
-            {/* 2FA */}
             <div className="st-toggle-wrap">
               <div className="st-toggle-info">
                 <p className="st-toggle-label">Two-Factor Authentication (2FA)</p>
@@ -157,7 +159,6 @@ export default function AccessSecurity() {
                 <span className="st-toggle-slider" />
               </label>
             </div>
-            {/* MFA */}
             <div className="st-toggle-wrap">
               <div className="st-toggle-info">
                 <p className="st-toggle-label">Require MFA for all users</p>
@@ -219,8 +220,10 @@ export default function AccessSecurity() {
             </div>
           </div>
         </div>
+        */}
 
         {/* ── Section 4: API Keys ───────────────────────────────────────── */}
+        {/* Hidden — no real API-key infrastructure exists yet.
         <div className="st-card">
           <div className="st-card-header">
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -264,6 +267,7 @@ export default function AccessSecurity() {
             </button>
           </div>
         </div>
+        */}
       </div>
 
       {/* ── Right panel ──────────────────────────────────────────────────── */}

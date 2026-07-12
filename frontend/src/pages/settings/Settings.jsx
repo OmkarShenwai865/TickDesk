@@ -1,15 +1,17 @@
 import { NavLink, Outlet } from "react-router-dom";
 import {
-  FiGrid, FiShield, FiHeadphones, FiBell, FiSettings,
+  FiGrid, FiShield,
+  // FiHeadphones, FiBell, FiSettings, // unused while Helpdesk/Notifications/System tabs are hidden
 } from "react-icons/fi";
 import "./Settings.css";
 
 const NAV = [
   { path: "/settings/general",          label: "General",            Icon: FiGrid },
   { path: "/settings/access-security",  label: "Access & Security",  Icon: FiShield },
-  { path: "/settings/helpdesk",         label: "Helpdesk",           Icon: FiHeadphones },
-  { path: "/settings/notifications",    label: "Notifications",      Icon: FiBell },
-  { path: "/settings/system",           label: "System",             Icon: FiSettings },
+  // Hidden until these have real backend endpoints behind them:
+  // { path: "/settings/helpdesk",      label: "Helpdesk",           Icon: FiHeadphones },
+  // { path: "/settings/notifications", label: "Notifications",      Icon: FiBell },
+  // { path: "/settings/system",        label: "System",             Icon: FiSettings },
 ];
 
 export default function Settings() {

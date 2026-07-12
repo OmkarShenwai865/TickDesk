@@ -7,8 +7,13 @@ import secrets
 
 
 class Company(models.Model):
-    name       = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
+    name          = models.CharField(max_length=255)
+    support_email = models.EmailField(blank=True)
+    website       = models.URLField(blank=True)
+    timezone      = models.CharField(max_length=50, blank=True, default="GMT+0")
+    date_format   = models.CharField(max_length=20, blank=True, default="MM/DD/YYYY")
+    is_active     = models.BooleanField(default=True)
+    created_at    = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name_plural = "Companies"
@@ -18,14 +23,16 @@ class Company(models.Model):
 
 
 class User(AbstractUser):
-    ROLE_ADMIN    = 'admin'
-    ROLE_AGENT    = 'agent'
-    ROLE_EMPLOYEE = 'employee'
+    ROLE_ADMIN      = 'admin'
+    ROLE_AGENT      = 'agent'
+    ROLE_EMPLOYEE   = 'employee'
+    ROLE_SUPERADMIN = 'superadmin'
 
     ROLE_CHOICES = [
-        (ROLE_ADMIN,    'Admin'),
-        (ROLE_AGENT,    'Agent'),
-        (ROLE_EMPLOYEE, 'Employee'),
+        (ROLE_ADMIN,      'Admin'),
+        (ROLE_AGENT,      'Agent'),
+        (ROLE_EMPLOYEE,   'Employee'),
+        (ROLE_SUPERADMIN, 'Super Admin'),
     ]
 
     STATUS_ACTIVE   = 'active'

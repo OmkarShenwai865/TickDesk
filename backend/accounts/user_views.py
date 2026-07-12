@@ -4,14 +4,65 @@ from rest_framework import status
 from django.db.models import Count, Q
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.conf import settings
 from django.utils import timezone
+from datetime import timedelta
 
 from .models import User, Department, Company, UserInvitation
+from .email_utils import send_branded_email, rows_table, paragraph, cta_button
 from dashboard.permissions import IsCompanyAdmin, IsCompanyMember
 from assets.models import Asset
 from assets.serializers import AssetSerializer
 
 PAGE_SIZE = 10
+
+
+def _send_new_company_email(company, admin, request):
+    """Notify the platform owner whenever a new company signs up."""
+    frontend_origin = request.headers.get('Origin') or 'http://localhost:5173'
+    companies_url = f"{frontend_origin}/platform/companies/{company.id}"
+    registered_on = company.created_at.strftime('%B %d, %Y at %I:%M %p')
+
+    body_html = (
+        rows_table([
+            ("Company Name", company.name),
+            ("Admin Name", f"{admin.first_name} {admin.last_name}"),
+            ("Admin Email", admin.email),
+            ("Registered On", registered_on),
+        ])
+        + cta_button("View in Master Admin →", companies_url)
+    )
+
+    text = (
+        f"New company registered on TickDesk: {company.name}\n\n"
+        f"Admin: {admin.first_name} {admin.last_name} ({admin.email})\n"
+        f"Registered on: {registered_on}\n\n"
+        f"View: {companies_url}"
+    )
+
+    send_branded_email(
+        to=[settings.PLATFORM_NOTIFY_EMAIL],
+        subject=f"New company on TickDesk: {company.name}",
+        preheader="NEW COMPANY REGISTERED",
+        title=f"{company.name} just joined TickDesk 🎉",
+        body_html=body_html,
+        text_fallback=text,
+    )
+
+
+def _notify_superadmins_new_company(company, admin):
+    """In-app bell notification for every Master Admin account."""
+    from notifications.utils import notify
+
+    admin_name = f"{admin.first_name} {admin.last_name}".strip() or admin.username
+    for superadmin in User.objects.filter(role=User.ROLE_SUPERADMIN):
+        notify(
+            superadmin,
+            'company_registered',
+            f"New company registered: {company.name}",
+            f"Admin: {admin_name} ({admin.email})",
+            f"/platform/companies/{company.id}",
+        )
 
 
 class CompanyRegisterView(APIView):
@@ -66,6 +117,9 @@ class CompanyRegisterView(APIView):
             role=User.ROLE_ADMIN,
             status=User.STATUS_ACTIVE,
         )
+
+        _send_new_company_email(company, user, request)
+        _notify_superadmins_new_company(company, user)
 
         return Response({
             'message': 'Company registered successfully. You can now log in.',
@@ -122,6 +176,36 @@ def _invite_to_dict(invite, request=None):
         'created_at': invite.created_at,
         'invite_url': invite_url,
     }
+
+
+def _send_invite_email(invite, invite_url):
+    company_name = invite.company.name if invite.company else 'TickDesk'
+    expires_str = invite.expires_at.strftime('%b %d, %Y %I:%M %p')
+
+    body_html = (
+        paragraph(
+            f"You've been invited to join {company_name} on TickDesk as "
+            f"{invite.get_role_display()}."
+        )
+        + cta_button("Accept Invite →", invite_url)
+        + paragraph(f"This link expires on {expires_str}.", color="#9ca3af")
+    )
+
+    text = (
+        f"You've been invited to join {company_name} on TickDesk as "
+        f"{invite.get_role_display()}.\n\n"
+        f"Accept your invite here: {invite_url}\n\n"
+        f"This link expires on {expires_str}."
+    )
+
+    send_branded_email(
+        to=[invite.email],
+        subject=f"You're invited to join {company_name} on TickDesk",
+        preheader="YOU'RE INVITED",
+        title=f"Join {company_name} on TickDesk",
+        body_html=body_html,
+        text_fallback=text,
+    )
 
 
 def _invite_row_to_dict(invite, request=None):
@@ -202,17 +286,61 @@ def _normalize_invite_payload(data, company, seen_emails=None):
     }, None
 
 
+def _last_6_month_starts(now):
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    months = []
+    cursor = month_start
+    for _ in range(6):
+        months.append(cursor)
+        if cursor.month == 1:
+            cursor = cursor.replace(year=cursor.year - 1, month=12)
+        else:
+            cursor = cursor.replace(month=cursor.month - 1)
+    months.reverse()
+    return months
+
+
+def _per_month_trend(qs, months, now):
+    trend = []
+    for i, m_start in enumerate(months):
+        m_end = months[i + 1] if i + 1 < len(months) else now
+        trend.append(qs.filter(date_joined__gte=m_start, date_joined__lt=m_end).count())
+    return trend
+
+
 class UserStatsView(APIView):
     permission_classes = [IsCompanyAdmin]
 
     def get(self, request):
         company = request.user.company
         qs = User.objects.filter(company=company)
+
+        now = timezone.now()
+        cutoff_30 = now - timedelta(days=30)
+        months = _last_6_month_starts(now)
+
+        def _delta(filtered_qs):
+            n = filtered_qs.filter(date_joined__gte=cutoff_30).count()
+            return 'steady' if n == 0 else f'+{n} vs last month'
+
+        total_qs   = qs
+        active_qs  = qs.filter(status='active')
+        agents_qs  = qs.filter(role='agent')
+        admins_qs  = qs.filter(role='admin')
+
         return Response({
-            'total_users':     qs.count(),
-            'active_users':    qs.filter(status='active').count(),
-            'support_agents':  qs.filter(role='agent').count(),
-            'administrators':  qs.filter(role='admin').count(),
+            'total_users':     total_qs.count(),
+            'active_users':    active_qs.count(),
+            'support_agents':  agents_qs.count(),
+            'administrators':  admins_qs.count(),
+            'total_users_delta':    _delta(total_qs),
+            'active_users_delta':   _delta(active_qs),
+            'support_agents_delta': _delta(agents_qs),
+            'administrators_delta': _delta(admins_qs),
+            'total_users_trend':    _per_month_trend(total_qs, months, now),
+            'active_users_trend':   _per_month_trend(active_qs, months, now),
+            'support_agents_trend': _per_month_trend(agents_qs, months, now),
+            'administrators_trend': _per_month_trend(admins_qs, months, now),
         })
 
 
@@ -389,7 +517,9 @@ class UserInviteView(APIView):
             location=normalized['location'],
             invited_by=request.user,
         )
-        return Response(_invite_to_dict(invite, request), status=status.HTTP_201_CREATED)
+        invite_dict = _invite_to_dict(invite, request)
+        _send_invite_email(invite, invite_dict['invite_url'])
+        return Response(invite_dict, status=status.HTTP_201_CREATED)
 
 
 class UserBulkInviteView(APIView):
@@ -434,11 +564,13 @@ class UserBulkInviteView(APIView):
             )
             seen_emails.add(normalized['email'])
             created += 1
+            invite_dict = _invite_to_dict(invite, request)
+            _send_invite_email(invite, invite_dict['invite_url'])
             results.append({
                 'index': index,
                 'email': invite.email,
                 'status': 'created',
-                'invite': _invite_to_dict(invite, request),
+                'invite': invite_dict,
             })
 
         invalid = len(results) - created
