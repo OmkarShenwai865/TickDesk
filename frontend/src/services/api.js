@@ -1,7 +1,7 @@
 import axios from "axios"
 
 const api = axios.create({
-    baseURL: "http://127.0.0.1:8000/api/"
+    baseURL: import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api/"
 })
 //request interceptor
 api.interceptors.request.use(
@@ -28,8 +28,9 @@ api.interceptors.response.use(
             originalRequest._retry = true;
             try{
                 const refresh= localStorage.getItem("refresh");
+                const baseURL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api/";
                 const response = await axios.post(
-                    "http://127.0.0.1:8000/api/accounts/refresh/",
+                    `${baseURL}accounts/refresh/`,
                     {
                         refresh : refresh,
                     }
