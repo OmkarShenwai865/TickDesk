@@ -54,9 +54,10 @@ def render_shell(preheader, title, body_html):
     return f"""\
 <div style="background:#f3f4f6;padding:32px 16px;font-family:-apple-system,'Segoe UI',Arial,sans-serif;">
   <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e5e7eb;">
-    <div style="background:#111827;padding:24px 28px;display:flex;align-items:center;">
-      <img src="cid:logo" width="36" height="36" style="border-radius:9px;vertical-align:middle;" alt="TickDesk" />
-      <span style="color:#ffffff;font-size:17px;font-weight:700;margin-left:10px;vertical-align:middle;">TickDesk</span>
+    <div style="background:#111827;padding:24px 28px;text-align:center;">
+      <div style="display:inline-block;background:#2563eb;width:40px;height:40px;border-radius:10px;line-height:40px;text-align:center;font-size:24px;margin-bottom:8px;">🎫</div>
+      <div style="color:#ffffff;font-size:18px;font-weight:700;">TickDesk</div>
+      <div style="color:#9ca3af;font-size:12px;margin-top:2px;">IT Helpdesk &amp; Asset Management</div>
     </div>
     <div style="padding:28px;">
       <p style="font-size:12px;font-weight:700;letter-spacing:0.06em;color:#2563eb;margin:0 0 6px;">{esc(preheader)}</p>
