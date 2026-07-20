@@ -19,35 +19,42 @@ PAGE_SIZE = 10
 
 def _send_new_company_email(company, admin, request):
     """Notify the platform owner whenever a new company signs up."""
-    frontend_origin = request.headers.get('Origin') or 'http://localhost:5173'
-    companies_url = f"{frontend_origin}/platform/companies/{company.id}"
-    registered_on = company.created_at.strftime('%B %d, %Y at %I:%M %p')
+    import threading
 
-    body_html = (
-        rows_table([
-            ("Company Name", company.name),
-            ("Admin Name", f"{admin.first_name} {admin.last_name}"),
-            ("Admin Email", admin.email),
-            ("Registered On", registered_on),
-        ])
-        + cta_button("View in Master Admin →", companies_url)
-    )
+    def send_in_background():
+        frontend_origin = request.headers.get('Origin') or 'http://localhost:5173'
+        companies_url = f"{frontend_origin}/platform/companies/{company.id}"
+        registered_on = company.created_at.strftime('%B %d, %Y at %I:%M %p')
 
-    text = (
-        f"New company registered on TickDesk: {company.name}\n\n"
-        f"Admin: {admin.first_name} {admin.last_name} ({admin.email})\n"
-        f"Registered on: {registered_on}\n\n"
-        f"View: {companies_url}"
-    )
+        body_html = (
+            rows_table([
+                ("Company Name", company.name),
+                ("Admin Name", f"{admin.first_name} {admin.last_name}"),
+                ("Admin Email", admin.email),
+                ("Registered On", registered_on),
+            ])
+            + cta_button("View in Master Admin →", companies_url)
+        )
 
-    send_branded_email(
-        to=[settings.PLATFORM_NOTIFY_EMAIL],
-        subject=f"New company on TickDesk: {company.name}",
-        preheader="NEW COMPANY REGISTERED",
-        title=f"{company.name} just joined TickDesk 🎉",
-        body_html=body_html,
-        text_fallback=text,
-    )
+        text = (
+            f"New company registered on TickDesk: {company.name}\n\n"
+            f"Admin: {admin.first_name} {admin.last_name} ({admin.email})\n"
+            f"Registered on: {registered_on}\n\n"
+            f"View: {companies_url}"
+        )
+
+        send_branded_email(
+            to=[settings.PLATFORM_NOTIFY_EMAIL],
+            subject=f"New company on TickDesk: {company.name}",
+            preheader="NEW COMPANY REGISTERED",
+            title=f"{company.name} just joined TickDesk 🎉",
+            body_html=body_html,
+            text_fallback=text,
+        )
+
+    # Send email in background thread so it doesn't block the request
+    thread = threading.Thread(target=send_in_background, daemon=True)
+    thread.start()
 
 
 def _notify_superadmins_new_company(company, admin):
@@ -179,33 +186,40 @@ def _invite_to_dict(invite, request=None):
 
 
 def _send_invite_email(invite, invite_url):
-    company_name = invite.company.name if invite.company else 'TickDesk'
-    expires_str = invite.expires_at.strftime('%b %d, %Y %I:%M %p')
+    import threading
 
-    body_html = (
-        paragraph(
-            f"You've been invited to join {company_name} on TickDesk as "
-            f"{invite.get_role_display()}."
+    def send_in_background():
+        company_name = invite.company.name if invite.company else 'TickDesk'
+        expires_str = invite.expires_at.strftime('%b %d, %Y %I:%M %p')
+
+        body_html = (
+            paragraph(
+                f"You've been invited to join {company_name} on TickDesk as "
+                f"{invite.get_role_display()}."
+            )
+            + cta_button("Accept Invite →", invite_url)
+            + paragraph(f"This link expires on {expires_str}.", color="#9ca3af")
         )
-        + cta_button("Accept Invite →", invite_url)
-        + paragraph(f"This link expires on {expires_str}.", color="#9ca3af")
-    )
 
-    text = (
-        f"You've been invited to join {company_name} on TickDesk as "
-        f"{invite.get_role_display()}.\n\n"
-        f"Accept your invite here: {invite_url}\n\n"
-        f"This link expires on {expires_str}."
-    )
+        text = (
+            f"You've been invited to join {company_name} on TickDesk as "
+            f"{invite.get_role_display()}.\n\n"
+            f"Accept your invite here: {invite_url}\n\n"
+            f"This link expires on {expires_str}."
+        )
 
-    send_branded_email(
-        to=[invite.email],
-        subject=f"You're invited to join {company_name} on TickDesk",
-        preheader="YOU'RE INVITED",
-        title=f"Join {company_name} on TickDesk",
-        body_html=body_html,
-        text_fallback=text,
-    )
+        send_branded_email(
+            to=[invite.email],
+            subject=f"You're invited to join {company_name} on TickDesk",
+            preheader="YOU'RE INVITED",
+            title=f"Join {company_name} on TickDesk",
+            body_html=body_html,
+            text_fallback=text,
+        )
+
+    # Send email in background thread so it doesn't block the request
+    thread = threading.Thread(target=send_in_background, daemon=True)
+    thread.start()
 
 
 def _invite_row_to_dict(invite, request=None):

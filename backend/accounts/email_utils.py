@@ -92,9 +92,13 @@ def send_branded_email(to, subject, preheader, title, body_html, text_fallback):
         msg.attach(logo)
 
     try:
+        # Use a shorter timeout to prevent worker timeouts
+        from django.core.mail import get_connection
+        connection = get_connection(timeout=10)
+        msg.connection = connection
         msg.send(fail_silently=False)
         print(f"✅ Email sent successfully to {to}")
     except Exception as e:
-        print(f"❌ Email failed to send: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"❌ Email failed to send to {to}: {e}")
+        # Don't print full traceback - just log the error
+        # This prevents cluttering logs with SMTP connection errors
