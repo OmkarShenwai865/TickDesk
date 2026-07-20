@@ -4,10 +4,9 @@ user invites, password resets, announcements), so they all look like one
 product instead of ad hoc plain-text messages.
 """
 import html as _html
-from email.mime.image import MIMEImage
+import os
 
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
 
 LOGO_PATH = settings.BASE_DIR / 'accounts' / 'email_assets' / 'logo.png'
 
@@ -76,29 +75,49 @@ def send_branded_email(to, subject, preheader, title, body_html, text_fallback):
     """to: list of recipient email addresses."""
     html_body = render_shell(preheader, title, body_html)
 
-    msg = EmailMultiAlternatives(
-        subject=subject,
-        body=text_fallback,
-        from_email=None,
-        to=to,
-    )
-    msg.attach_alternative(html_body, "text/html")
+    # Use Resend if API key is configured, otherwise fall back to Django email backend
+    resend_api_key = os.environ.get('RESEND_API_KEY', '')
 
-    if LOGO_PATH.exists():
-        with open(LOGO_PATH, 'rb') as f:
-            logo = MIMEImage(f.read())
-        logo.add_header('Content-ID', '<logo>')
-        logo.add_header('Content-Disposition', 'inline', filename='logo.png')
-        msg.attach(logo)
+    if resend_api_key:
+        # Use Resend API
+        try:
+            import resend
+            resend.api_key = resend_api_key
 
-    try:
-        # Use a shorter timeout to prevent worker timeouts
-        from django.core.mail import get_connection
-        connection = get_connection(timeout=10)
-        msg.connection = connection
-        msg.send(fail_silently=False)
-        print(f"✅ Email sent successfully to {to}")
-    except Exception as e:
-        print(f"❌ Email failed to send to {to}: {e}")
-        # Don't print full traceback - just log the error
-        # This prevents cluttering logs with SMTP connection errors
+            params = {
+                "from": settings.DEFAULT_FROM_EMAIL,
+                "to": to,
+                "subject": subject,
+                "html": html_body,
+                "text": text_fallback,
+            }
+
+            response = resend.Emails.send(params)
+            print(f"✅ Email sent successfully via Resend to {to} (ID: {response['id']})")
+        except Exception as e:
+            print(f"❌ Resend email failed to {to}: {e}")
+    else:
+        # Fall back to Django SMTP (for local development)
+        try:
+            from django.core.mail import EmailMultiAlternatives
+            from email.mime.image import MIMEImage
+
+            msg = EmailMultiAlternatives(
+                subject=subject,
+                body=text_fallback,
+                from_email=None,
+                to=to,
+            )
+            msg.attach_alternative(html_body, "text/html")
+
+            if LOGO_PATH.exists():
+                with open(LOGO_PATH, 'rb') as f:
+                    logo = MIMEImage(f.read())
+                logo.add_header('Content-ID', '<logo>')
+                logo.add_header('Content-Disposition', 'inline', filename='logo.png')
+                msg.attach(logo)
+
+            msg.send(fail_silently=False)
+            print(f"✅ Email sent successfully via SMTP to {to}")
+        except Exception as e:
+            print(f"❌ SMTP email failed to {to}: {e}")

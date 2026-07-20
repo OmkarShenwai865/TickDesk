@@ -147,20 +147,14 @@ DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 MEDIA_URL = '/media/'
 
 
-# Email (SMTP) Configuration
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
-if EMAIL_HOST_USER:
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = 'smtp.gmail.com'
-    EMAIL_PORT = 587
-    EMAIL_USE_TLS = True
-    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-    DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
-else:
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-    DEFAULT_FROM_EMAIL = 'noreply@tickdesk.local'
-
+# Email Configuration
+# Using Resend for transactional emails (works on Render free tier)
+# Set RESEND_API_KEY environment variable to enable email sending
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'TickDesk <onboarding@resend.dev>')
 PLATFORM_NOTIFY_EMAIL = os.environ.get('PLATFORM_NOTIFY_EMAIL', '')
+
+# Optional: SMTP fallback for local development
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 
 # Security Settings
