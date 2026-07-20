@@ -91,4 +91,10 @@ def send_branded_email(to, subject, preheader, title, body_html, text_fallback):
         logo.add_header('Content-Disposition', 'inline', filename='logo.png')
         msg.attach(logo)
 
-    msg.send(fail_silently=True)
+    try:
+        msg.send(fail_silently=False)
+        print(f"✅ Email sent successfully to {to}")
+    except Exception as e:
+        print(f"❌ Email failed to send: {e}")
+        import traceback
+        traceback.print_exc()
