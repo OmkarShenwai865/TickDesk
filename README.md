@@ -223,7 +223,7 @@ This project demonstrates:
 - **Responsive design** for desktop and mobile
 - **Version control** with Git/GitHub
 
-**Live Demo**: [Add your Vercel URL here after deployment]
+**Live Demo**: https://tickdesk-app.vercel.app/
 
 ---
 
